@@ -14,6 +14,8 @@ const Login = () => {
     });
     const [showPassword, setShowPassword] = useState(false);
 
+    const [isLoading, setIsLoading] = useState(false);
+
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
@@ -28,6 +30,12 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!formData.role) {
+            toast.error('Please select a role', { position: "top-right" });
+            return;
+        }
+
+        setIsLoading(true);
         try {
             const res = await axios.post(`${API_URL}/auth/login`, formData);
             login(res.data.user, res.data.token);
@@ -37,6 +45,8 @@ const Login = () => {
             navigate(from, { replace: true });
         } catch (err) {
             toast.error(err.response?.data?.message || 'Login failed', { position: "top-right" });
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -188,12 +198,26 @@ const Login = () => {
 
                     <motion.button
                         type="submit"
-                        whileHover="hover"
-                        whileTap={{ scale: 0.98 }}
+                        disabled={isLoading}
+                        whileHover={!isLoading ? "hover" : {}}
+                        whileTap={!isLoading ? { scale: 0.98 } : {}}
                         variants={buttonHover}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all duration-300 mt-6 sm:mt-8 text-sm sm:text-base"
+                        className={`w-full p-3 sm:p-4 rounded-xl font-bold shadow-lg transition-all duration-300 mt-6 sm:mt-8 text-sm sm:text-base ${isLoading
+                            ? 'bg-blue-400 cursor-not-allowed text-white/80'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20'
+                            }`}
                     >
-                        Sign In
+                        {isLoading ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Signing In...</span>
+                            </div>
+                        ) : (
+                            'Sign In'
+                        )}
                     </motion.button>
                 </form>
 
