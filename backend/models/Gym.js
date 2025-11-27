@@ -5,6 +5,7 @@ const gymSchema = new mongoose.Schema({
     gymName: { type: String, required: true },
     address: { type: String, required: true },
     photos: [{ type: String }], // Cloudinary URLs
+    primaryImage: { type: String }, // URL of the primary image
     ownerName: { type: String, required: true },
     ownerEmail: { type: String, required: true },
     email: { type: String, required: true, unique: true },

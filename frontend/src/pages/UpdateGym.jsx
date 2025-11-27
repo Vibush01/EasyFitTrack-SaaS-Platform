@@ -16,6 +16,7 @@ const UpdateGym = () => {
         membershipPlans: [],
         photos: [],
         deletePhotos: [],
+        primaryImage: '',
     });
     const [newMembershipPlan, setNewMembershipPlan] = useState({ duration: '', price: '' });
     const [previewImages, setPreviewImages] = useState([]);
@@ -36,6 +37,7 @@ const UpdateGym = () => {
                     ownerEmail: res.data.ownerEmail || '',
                     membershipPlans: res.data.membershipPlans || [],
                     photos: res.data.photos || [],
+                    primaryImage: res.data.primaryImage || '',
                     deletePhotos: [],
                 });
                 setPreviewImages(res.data.photos || []);
@@ -101,8 +103,13 @@ const UpdateGym = () => {
             ...formData,
             deletePhotos: [...formData.deletePhotos, photoUrl],
             photos: formData.photos.filter((photo) => !(photo instanceof File) || URL.createObjectURL(photo) !== photoUrl),
+            primaryImage: formData.primaryImage === photoUrl ? '' : formData.primaryImage,
         });
         setPreviewImages(previewImages.filter((url) => url !== photoUrl));
+    };
+
+    const handleSetPrimaryImage = (photoUrl) => {
+        setFormData({ ...formData, primaryImage: photoUrl });
     };
 
     const handleSubmit = async (e) => {
@@ -114,11 +121,15 @@ const UpdateGym = () => {
             if (formData.address) data.append('address', formData.address);
             if (formData.ownerName) data.append('ownerName', formData.ownerName);
             if (formData.ownerEmail) data.append('ownerEmail', formData.ownerEmail);
+            if (formData.primaryImage) data.append('primaryImage', formData.primaryImage);
+
             const membershipPlans = Array.isArray(formData.membershipPlans) ? formData.membershipPlans : [];
             data.append('membershipPlans', JSON.stringify(membershipPlans));
+
             if (formData.deletePhotos.length > 0) {
                 data.append('deletePhotos', JSON.stringify(formData.deletePhotos));
             }
+
             formData.photos.forEach((photo) => {
                 if (photo instanceof File) {
                     data.append('photos', photo);
@@ -356,18 +367,37 @@ const UpdateGym = () => {
                                                 alt={`Gym ${index}`}
                                                 className="w-full h-full object-cover"
                                             />
-                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
+                                                <motion.button
+                                                    type="button"
+                                                    onClick={() => handleSetPrimaryImage(photo)}
+                                                    whileHover={{ scale: 1.1 }}
+                                                    className={`p-2 rounded-full ${formData.primaryImage === photo ? 'bg-yellow-400 text-white' : 'bg-white/20 text-white hover:bg-yellow-400'}`}
+                                                    title="Set as Primary Image"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                    </svg>
+                                                </motion.button>
                                                 <motion.button
                                                     type="button"
                                                     onClick={() => handleDeletePhoto(photo)}
                                                     whileHover={{ scale: 1.1 }}
                                                     className="bg-red-600 text-white p-2 rounded-full"
+                                                    title="Delete Photo"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                                     </svg>
                                                 </motion.button>
                                             </div>
+                                            {formData.primaryImage === photo && (
+                                                <div className="absolute top-2 right-2 bg-yellow-400 text-white p-1 rounded-full shadow-md">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                    </svg>
+                                                </div>
+                                            )}
                                         </motion.div>
                                     ))}
                                 </div>

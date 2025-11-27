@@ -141,6 +141,9 @@ router.put('/update', authMiddleware, upload.array('photos', 5), async (req, res
         if (address) gym.address = address;
         if (ownerName) gym.ownerName = ownerName;
         if (ownerEmail) gym.ownerEmail = ownerEmail;
+        if (req.body.primaryImage !== undefined) {
+            gym.primaryImage = req.body.primaryImage;
+        }
         if (membershipPlans) {
             if (typeof membershipPlans !== 'string') {
                 return res.status(400).json({ message: 'membershipPlans must be a JSON string' });
@@ -163,6 +166,9 @@ router.put('/update', authMiddleware, upload.array('photos', 5), async (req, res
                 const fullPublicId = `${folderPath}/${publicId}`;
                 await cloudinary.uploader.destroy(fullPublicId);
                 gym.photos = gym.photos.filter((photo) => photo !== photoUrl);
+                if (gym.primaryImage === photoUrl) {
+                    gym.primaryImage = null;
+                }
             }
         }
 

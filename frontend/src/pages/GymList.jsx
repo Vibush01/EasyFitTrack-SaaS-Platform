@@ -4,8 +4,9 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+
 const GymList = () => {
     const { user } = useContext(AuthContext);
     const [gyms, setGyms] = useState([]);
@@ -76,28 +77,47 @@ const GymList = () => {
                     </motion.p>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {gyms.map((gym) => (
-                        <motion.div
-                            key={gym._id}
-                            className="bg-[var(--bg-card)] p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-[var(--border-color)]"
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true }}
-                            variants={zoomIn}
-                        >
-                            <h2 className="text-xl sm:text-2xl font-bold mb-2 text-[var(--text-primary)]">{gym.gymName}</h2>
-                            <p className="text-[var(--text-secondary)] text-sm sm:text-base mb-4">{gym.address}</p>
-                            <motion.div whileHover="hover" variants={buttonHover}>
-                                <Link
-                                    to={`/gym/${gym._id}`}
-                                    className="block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 text-center text-sm sm:text-base font-semibold"
-                                    aria-label={`View details of ${gym.gymName}`}
-                                >
-                                    View Details
-                                </Link>
+                    {gyms.map((gym) => {
+                        const displayImage = gym.primaryImage || (gym.photos && gym.photos.length > 0 ? gym.photos[0] : null);
+
+                        return (
+                            <motion.div
+                                key={gym._id}
+                                className="bg-[var(--bg-card)] p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-[var(--border-color)] flex flex-col h-full"
+                                initial="hidden"
+                                whileInView="visible"
+                                viewport={{ once: true }}
+                                variants={zoomIn}
+                            >
+                                <div className="aspect-video w-full mb-4 rounded-xl overflow-hidden bg-[var(--bg-secondary)]">
+                                    {displayImage ? (
+                                        <img
+                                            src={displayImage}
+                                            alt={gym.gymName}
+                                            className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[var(--text-secondary)]">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                </div>
+                                <h2 className="text-xl sm:text-2xl font-bold mb-2 text-[var(--text-primary)]">{gym.gymName}</h2>
+                                <p className="text-[var(--text-secondary)] text-sm sm:text-base mb-4 flex-grow">{gym.address}</p>
+                                <motion.div whileHover="hover" variants={buttonHover} className="mt-auto">
+                                    <Link
+                                        to={`/gym/${gym._id}`}
+                                        className="block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 text-center text-sm sm:text-base font-semibold"
+                                        aria-label={`View details of ${gym.gymName}`}
+                                    >
+                                        View Details
+                                    </Link>
+                                </motion.div>
                             </motion.div>
-                        </motion.div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
