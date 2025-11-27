@@ -6,7 +6,6 @@ import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 
-// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const Chat = () => {
@@ -18,6 +17,7 @@ const Chat = () => {
     const [selectedReceiver, setSelectedReceiver] = useState(null);
     const [error, setError] = useState('');
     const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages
+    const [showChat, setShowChat] = useState(false);
     const socketRef = useRef(null);
 
     useEffect(() => {
@@ -152,7 +152,13 @@ const Chat = () => {
 
     const handleReceiverSelect = (receiver) => {
         setSelectedReceiver(receiver);
+        setShowChat(true);
         fetchMessages(receiver._id);
+    };
+
+    const handleBackToReceivers = () => {
+        setShowChat(false);
+        setSelectedReceiver(null);
     };
 
     const handleSendMessage = () => {
@@ -228,7 +234,7 @@ const Chat = () => {
                     initial="hidden"
                     animate="visible"
                     variants={fadeIn}
-                    className="w-full lg:w-1/4 bg-[var(--bg-card)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--border-color)] flex flex-col"
+                    className={`w-full lg:w-1/4 bg-[var(--bg-card)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--border-color)] flex-col ${showChat ? 'hidden lg:flex' : 'flex'}`}
                 >
                     <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-[var(--text-primary)]">Chat With</h2>
                     {error && (
@@ -284,9 +290,19 @@ const Chat = () => {
                     initial="hidden"
                     animate="visible"
                     variants={fadeIn}
-                    className="w-full lg:w-3/4 bg-[var(--bg-card)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--border-color)] flex flex-col"
+                    className={`w-full lg:w-3/4 bg-[var(--bg-card)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--border-color)] flex-col ${showChat ? 'flex' : 'hidden lg:flex'}`}
                 >
-                    <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-[var(--text-primary)]">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-[var(--text-primary)] flex items-center gap-3">
+                        {selectedReceiver && (
+                            <button
+                                onClick={handleBackToReceivers}
+                                className="lg:hidden p-2 rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                        )}
                         {selectedReceiver ? `Chat with ${selectedReceiver.name}` : 'Chat'}
                     </h2>
                     {selectedReceiver ? (
@@ -331,14 +347,14 @@ const Chat = () => {
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                    className="flex-1 p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[var(--text-primary)] placeholder-gray-500 transition-all duration-300"
+                                    className="flex-1 p-3 sm:p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[var(--text-primary)] placeholder-gray-500 transition-all duration-300"
                                     placeholder="Type a message..."
                                 />
                                 <motion.button
                                     onClick={handleSendMessage}
                                     whileHover="hover"
                                     variants={buttonHover}
-                                    className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-700 transition-all duration-300 shadow-lg shadow-blue-600/20"
+                                    className="bg-blue-600 text-white px-4 sm:px-8 py-3 sm:py-4 rounded-xl font-bold hover:bg-blue-700 transition-all duration-300 shadow-lg shadow-blue-600/20"
                                 >
                                     Send
                                 </motion.button>

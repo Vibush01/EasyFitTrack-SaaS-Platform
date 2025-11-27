@@ -129,6 +129,7 @@ const ProgressTracker = () => {
 
     const chartOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
                 position: 'top',
@@ -371,10 +372,10 @@ const ProgressTracker = () => {
                                                     {log.images.map((img, idx) => (
                                                         <img
                                                             key={idx}
-                                                            src={`${API_URL.replace('/api', '')}${img}`}
+                                                            src={img.startsWith('http') ? img : `${API_URL.replace('/api', '')}${img}`}
                                                             alt={`Progress ${idx + 1}`}
                                                             className="w-20 h-20 object-cover rounded-lg border border-[var(--border-color)] hover:scale-110 transition-transform duration-300 cursor-pointer"
-                                                            onClick={() => window.open(`${API_URL.replace('/api', '')}${img}`, '_blank')}
+                                                            onClick={() => window.open(img.startsWith('http') ? img : `${API_URL.replace('/api', '')}${img}`, '_blank')}
                                                         />
                                                     ))}
                                                 </div>
