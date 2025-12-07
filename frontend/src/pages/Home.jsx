@@ -133,7 +133,7 @@ const Home = () => {
                             </h2>
                             <div className="space-y-6 text-lg text-[var(--text-secondary)]">
                                 <p>
-                                    BeFit is your all-in-one fitness command center. We've reimagined how gyms operate and how members achieve their goals by bridging the gap between technology and physical wellness.
+                                    EasyFitTrack is your all-in-one fitness command center. We've reimagined how gyms operate and how members achieve their goals by bridging the gap between technology and physical wellness.
                                 </p>
                                 <p>
                                     Whether you're a gym owner looking to streamline operations, a trainer wanting to scale your impact, or a member chasing a new PR, our platform provides the tools you need to succeed.
@@ -165,7 +165,7 @@ const Home = () => {
             >
                 <div className="container mx-auto px-6">
                     <div className="text-center mb-20">
-                        <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[var(--text-primary)]">Why Choose <span className="text-blue-500">BeFit</span>?</h2>
+                        <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[var(--text-primary)]">Why Choose <span className="text-blue-500">EasyFitTrack</span>?</h2>
                         <p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto">Comprehensive tools designed for every role in the fitness ecosystem.</p>
                     </div>
 
@@ -218,17 +218,17 @@ const Home = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {[
                             {
-                                quote: "BeFit has transformed the way I manage my gym. The platform is intuitive, and I can easily oversee my trainers and members.",
+                                quote: "EasyFitTrack has transformed the way I manage my gym. The platform is intuitive, and I can easily oversee my trainers and members.",
                                 author: "John Doe",
                                 role: "Gym Owner"
                             },
                             {
-                                quote: "As a trainer, BeFit makes my job so much easier. I can create plans, schedule sessions, and chat with my clients all in one place.",
+                                quote: "As a trainer, EasyFitTrack makes my job so much easier. I can create plans, schedule sessions, and chat with my clients all in one place.",
                                 author: "Jane Smith",
                                 role: "Personal Trainer"
                             },
                             {
-                                quote: "I love how BeFit helps me track my progress and connect with my trainer. It’s the best fitness app I’ve ever used!",
+                                quote: "I love how EasyFitTrack helps me track my progress and connect with my trainer. It’s the best fitness app I’ve ever used!",
                                 author: "Mike Johnson",
                                 role: "Member"
                             }
@@ -360,9 +360,9 @@ const Home = () => {
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                             <span className="text-white font-bold text-xl">B</span>
                         </div>
-                        <span className="text-[var(--text-primary)] text-2xl font-bold">Be<span className="text-blue-500">Fit</span></span>
+                        <span className="text-[var(--text-primary)] text-2xl font-bold">EasyFit<span className="text-blue-500">Track</span></span>
                     </div>
-                    <p className="mb-8">© 2025 BeFit. All rights reserved.</p>
+                    <p className="mb-8">© 2025 EasyFitTrack. All rights reserved.</p>
                     <div className="flex justify-center space-x-8">
                         <a href="#" className="hover:text-blue-500 transition-colors">Privacy Policy</a>
                         <a href="#" className="hover:text-blue-500 transition-colors">Terms of Service</a>

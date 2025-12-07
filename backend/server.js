@@ -21,7 +21,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
-        origin: 'easyfittrack.netlify.app',
+        origin: ['http://localhost:5173', 'https://easyfittrack.netlify.app'],
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
     },
 });
@@ -29,7 +29,7 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(cors({
-    origin: 'easyfittrack.netlify.app',
+    origin: ['http://localhost:5173', 'https://easyfittrack.netlify.app'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
     allowedHeaders: ['Content-Type', 'Authorization'], // Allow these headers
 }));

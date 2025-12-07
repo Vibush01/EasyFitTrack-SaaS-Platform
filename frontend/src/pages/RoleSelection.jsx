@@ -39,7 +39,7 @@ const RoleSelection = () => {
             >
                 <motion.div variants={fadeIn} className="text-center mb-8 sm:mb-10">
                     <h1 className="text-3xl sm:text-4xl font-bold text-[var(--text-primary)] mb-2 tracking-tight">
-                        Join BeFit
+                        Join EasyFitTrack
                     </h1>
                     <p className="text-[var(--text-secondary)] text-sm sm:text-base">Choose how you want to use the platform</p>
                 </motion.div>

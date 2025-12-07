@@ -90,7 +90,7 @@ const Navbar = () => {
             <div className="container mx-auto flex justify-between items-center">
                 {/* Logo */}
                 <Link to="/" className="text-white text-2xl sm:text-3xl font-bold tracking-tight">
-                    BeFit
+                    EasyFitTrack
                 </Link>
 
                 {/* Hamburger Menu for Mobile */}
