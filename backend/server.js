@@ -46,12 +46,10 @@ app.set('socketio', io);
 
 // Socket.IO connection
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
 
     // Join a gym room
     socket.on('joinGym', (gymId) => {
         socket.join(gymId);
-        console.log(`User ${socket.id} joined gym ${gymId}`);
     });
 
     // Handle chat messages
@@ -95,7 +93,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
     });
 });
 
