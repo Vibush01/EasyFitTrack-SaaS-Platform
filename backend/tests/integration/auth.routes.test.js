@@ -3,33 +3,25 @@ const mongoose = require('mongoose');
 const app = require('../../server');
 const Member = require('../../models/Member');
 
-// Generate unique test email to avoid collisions across runs
 const testEmail = `integration-test-${Date.now()}@test.com`;
 const testPassword = 'TestPassword123';
 let authToken;
 
 describe('Auth API Routes', () => {
-    // Connect to DB (server.js already calls connectDB, but ensure connection is ready)
     beforeAll(async () => {
-        // Wait for the mongoose connection to be ready
         if (mongoose.connection.readyState !== 1) {
             await new Promise((resolve) => {
                 mongoose.connection.once('connected', resolve);
-                // If already connecting, just wait
                 setTimeout(resolve, 3000);
             });
         }
     });
 
-    // Clean up test data and close connection
     afterAll(async () => {
         await Member.deleteMany({ email: testEmail });
         await mongoose.connection.close();
     });
 
-    // ==========================================
-    // POST /api/auth/register
-    // ==========================================
     describe('POST /api/auth/register', () => {
         it('should register a new member successfully (201)', async () => {
             const res = await request(app)
@@ -48,7 +40,6 @@ describe('Auth API Routes', () => {
             expect(res.body.user.email).toBe(testEmail);
             expect(res.body.user.role).toBe('member');
 
-            // Save token for later tests
             authToken = res.body.token;
         });
 
@@ -83,9 +74,6 @@ describe('Auth API Routes', () => {
         });
     });
 
-    // ==========================================
-    // POST /api/auth/login
-    // ==========================================
     describe('POST /api/auth/login', () => {
         it('should login with correct credentials (200)', async () => {
             const res = await request(app)
@@ -101,7 +89,6 @@ describe('Auth API Routes', () => {
             expect(res.body.user.email).toBe(testEmail);
             expect(res.body.user.role).toBe('member');
 
-            // Update token for profile tests
             authToken = res.body.token;
         });
 
@@ -130,9 +117,6 @@ describe('Auth API Routes', () => {
         });
     });
 
-    // ==========================================
-    // GET /api/auth/profile
-    // ==========================================
     describe('GET /api/auth/profile', () => {
         it('should return user profile with valid token (200)', async () => {
             const res = await request(app)
@@ -142,7 +126,7 @@ describe('Auth API Routes', () => {
             expect(res.status).toBe(200);
             expect(res.body).toHaveProperty('name', 'Integration Test User');
             expect(res.body).toHaveProperty('email', testEmail);
-            expect(res.body).not.toHaveProperty('password'); // password should be excluded
+            expect(res.body).not.toHaveProperty('password');
         });
 
         it('should return 401 without a token', async () => {

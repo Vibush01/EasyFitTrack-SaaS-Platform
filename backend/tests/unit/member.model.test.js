@@ -3,12 +3,10 @@ const bcrypt = require('bcryptjs');
 const Member = require('../../models/Member');
 
 describe('Member Model', () => {
-    // Connect to the real database before tests
     beforeAll(async () => {
         await mongoose.connect(process.env.MONGO_URI);
     });
 
-    // Disconnect after tests and clean up
     afterAll(async () => {
         await Member.deleteMany({ email: /^unittest-/ });
         await mongoose.connection.close();
@@ -73,9 +71,7 @@ describe('Member Model', () => {
 
             await member.save();
 
-            // The stored password should NOT be the raw password
             expect(member.password).not.toBe(rawPassword);
-            // The stored password should be a valid bcrypt hash
             const isHashed = await bcrypt.compare(rawPassword, member.password);
             expect(isHashed).toBe(true);
         });
