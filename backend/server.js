@@ -115,4 +115,8 @@ app.get('/api/test', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5001;
-httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+if (process.env.NODE_ENV !== 'test') {
+    httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+module.exports = app;
