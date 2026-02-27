@@ -29,6 +29,13 @@ const io = new Server(httpServer, {
 });
 
 
+// Middleware: CORS must be first so all responses (including 429) include CORS headers
+app.use(cors({
+    origin: ['http://localhost:5173', 'https://easyfittrack.netlify.app'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 // Security: Helmet sets secure HTTP headers
 app.use(helmet());
 
@@ -42,21 +49,14 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// Rate Limiting: Strict limiter for auth routes (10 requests per 15 minutes per IP)
+// Rate Limiting: Strict limiter for login/register (30 requests per 15 minutes per IP)
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: 30,
     standardHeaders: true,
     legacyHeaders: false,
     message: { message: 'Too many authentication attempts, please try again later' },
 });
-
-// Middleware
-app.use(cors({
-    origin: ['http://localhost:5173', 'https://easyfittrack.netlify.app'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-}));
 
 app.use(express.json());
 
