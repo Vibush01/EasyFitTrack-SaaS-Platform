@@ -10,13 +10,15 @@ const Trainer = require('../models/Trainer');
 const Member = require('../models/Member');
 const EventLog = require('../models/EventLog');
 const authMiddleware = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { registerValidation, loginValidation, profileUpdateValidation } = require('../validators/auth.validators');
 
 // Configure Multer for file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Register
-router.post('/register', upload.array('photos', 5), async (req, res) => {
+router.post('/register', upload.array('photos', 5), registerValidation, validate, async (req, res) => {
     const { role, ...data } = req.body;
 
     try {
@@ -89,12 +91,8 @@ router.post('/register', upload.array('photos', 5), async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', loginValidation, validate, async (req, res) => {
     const { email, password, role } = req.body;
-
-    if (!email || !password || !role) {
-        return res.status(400).json({ message: 'Email, password, and role are required' });
-    }
 
     try {
         let user;
@@ -178,7 +176,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
 });
 
 // Update Profile
-router.put('/profile', authMiddleware, upload.single('profileImage'), async (req, res) => {
+router.put('/profile', authMiddleware, upload.single('profileImage'), profileUpdateValidation, validate, async (req, res) => {
     const { name, password } = req.body;
 
     try {

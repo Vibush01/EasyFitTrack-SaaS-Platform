@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const {
+    workoutPlanValidation, workoutPlanUpdateValidation,
+    dietPlanValidation, dietPlanUpdateValidation,
+    planIdValidation, scheduleValidation, scheduleUpdateValidation, scheduleIdValidation,
+    planRequestValidation, planRequestActionValidation,
+    trainerScheduleValidation, bookSessionValidation,
+} = require('../validators/trainer.validators');
 const WorkoutPlan = require('../models/WorkoutPlan');
 const WorkoutSchedule = require('../models/WorkoutSchedule');
 const PlanRequest = require('../models/PlanRequest');
@@ -11,16 +19,12 @@ const Member = require('../models/Member');
 const Gym = require('../models/Gym');
 
 // Create a workout plan (Trainer only)
-router.post('/workout-plans', authMiddleware, async (req, res) => {
+router.post('/workout-plans', authMiddleware, workoutPlanValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { memberId, title, description, exercises } = req.body;
-
-    if (!memberId || !title || !exercises || !Array.isArray(exercises) || exercises.length === 0) {
-        return res.status(400).json({ message: 'Member ID, title, and exercises are required' });
-    }
 
     try {
         const trainer = await Trainer.findById(req.user.id);
@@ -79,16 +83,12 @@ router.get('/workout-plans', authMiddleware, async (req, res) => {
 });
 
 // Update a workout plan (Trainer only)
-router.put('/workout-plans/:id', authMiddleware, async (req, res) => {
+router.put('/workout-plans/:id', authMiddleware, workoutPlanUpdateValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { title, description, exercises } = req.body;
-
-    if (!title || !exercises || !Array.isArray(exercises) || exercises.length === 0) {
-        return res.status(400).json({ message: 'Title and exercises are required' });
-    }
 
     try {
         const workoutPlan = await WorkoutPlan.findById(req.params.id);
@@ -113,7 +113,7 @@ router.put('/workout-plans/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete a workout plan (Trainer only)
-router.delete('/workout-plans/:id', authMiddleware, async (req, res) => {
+router.delete('/workout-plans/:id', authMiddleware, planIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -139,16 +139,12 @@ router.delete('/workout-plans/:id', authMiddleware, async (req, res) => {
 });
 
 // Create a diet plan (Trainer only)
-router.post('/diet-plans', authMiddleware, async (req, res) => {
+router.post('/diet-plans', authMiddleware, dietPlanValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { memberId, title, description, meals } = req.body;
-
-    if (!memberId || !title || !meals || !Array.isArray(meals) || meals.length === 0) {
-        return res.status(400).json({ message: 'Member ID, title, and meals are required' });
-    }
 
     try {
         const trainer = await Trainer.findById(req.user.id);
@@ -207,16 +203,12 @@ router.get('/diet-plans', authMiddleware, async (req, res) => {
 });
 
 // Update a diet plan (Trainer only)
-router.put('/diet-plans/:id', authMiddleware, async (req, res) => {
+router.put('/diet-plans/:id', authMiddleware, dietPlanUpdateValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { title, description, meals } = req.body;
-
-    if (!title || !meals || !Array.isArray(meals) || meals.length === 0) {
-        return res.status(400).json({ message: 'Title and meals are required' });
-    }
 
     try {
         const dietPlan = await DietPlan.findById(req.params.id);
@@ -241,7 +233,7 @@ router.put('/diet-plans/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete a diet plan (Trainer only)
-router.delete('/diet-plans/:id', authMiddleware, async (req, res) => {
+router.delete('/diet-plans/:id', authMiddleware, planIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -264,16 +256,12 @@ router.delete('/diet-plans/:id', authMiddleware, async (req, res) => {
 });
 
 // Schedule a workout session (Trainer only)
-router.post('/schedules', authMiddleware, async (req, res) => {
+router.post('/schedules', authMiddleware, scheduleValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { workoutPlanId, memberId, dateTime } = req.body;
-
-    if (!workoutPlanId || !memberId || !dateTime) {
-        return res.status(400).json({ message: 'Workout plan ID, member ID, and date/time are required' });
-    }
 
     try {
         const trainer = await Trainer.findById(req.user.id);
@@ -324,16 +312,12 @@ router.get('/schedules', authMiddleware, async (req, res) => {
 });
 
 // Update a workout schedule (legacy)
-router.put('/schedules/:id', authMiddleware, async (req, res) => {
+router.put('/schedules/:id', authMiddleware, scheduleUpdateValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { dateTime } = req.body;
-
-    if (!dateTime) {
-        return res.status(400).json({ message: 'Date and time are required' });
-    }
 
     try {
         const workoutSchedule = await WorkoutSchedule.findById(req.params.id);
@@ -355,7 +339,7 @@ router.put('/schedules/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete a workout schedule (legacy)
-router.delete('/schedules/:id', authMiddleware, async (req, res) => {
+router.delete('/schedules/:id', authMiddleware, scheduleIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -427,16 +411,12 @@ router.get('/member/schedules', authMiddleware, async (req, res) => {
 });
 
 // Request a workout or diet plan (Member only)
-router.post('/plan-requests', authMiddleware, async (req, res) => {
+router.post('/plan-requests', authMiddleware, planRequestValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { trainerId, requestType } = req.body;
-
-    if (!trainerId || !requestType || !['workout', 'diet'].includes(requestType)) {
-        return res.status(400).json({ message: 'Trainer ID and request type (workout or diet) are required' });
-    }
 
     try {
         const member = await Member.findById(req.user.id);
@@ -508,16 +488,12 @@ router.get('/plan-requests', authMiddleware, async (req, res) => {
 });
 
 // Approve or deny a plan request (Trainer only)
-router.post('/plan-requests/:id/action', authMiddleware, async (req, res) => {
+router.post('/plan-requests/:id/action', authMiddleware, planRequestActionValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { action } = req.body;
-
-    if (!action || !['approve', 'deny'].includes(action)) {
-        return res.status(400).json({ message: 'Action (approve or deny) is required' });
-    }
 
     try {
         const planRequest = await PlanRequest.findById(req.params.id);
@@ -543,16 +519,12 @@ router.post('/plan-requests/:id/action', authMiddleware, async (req, res) => {
 });
 
 // Post a free schedule slot (Trainer only)
-router.post('/trainer-schedules', authMiddleware, async (req, res) => {
+router.post('/trainer-schedules', authMiddleware, trainerScheduleValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { startTime, endTime } = req.body;
-
-    if (!startTime || !endTime) {
-        return res.status(400).json({ message: 'Start time and end time are required' });
-    }
 
     try {
         const trainer = await Trainer.findById(req.user.id);
@@ -608,7 +580,7 @@ router.get('/trainer-schedules', authMiddleware, async (req, res) => {
 });
 
 // Delete a free schedule slot (Trainer only)
-router.delete('/trainer-schedules/:id', authMiddleware, async (req, res) => {
+router.delete('/trainer-schedules/:id', authMiddleware, scheduleIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -661,7 +633,7 @@ router.get('/member/available-schedules', authMiddleware, async (req, res) => {
 });
 
 // Book a session (Member only)
-router.post('/book-session/:scheduleId', authMiddleware, async (req, res) => {
+router.post('/book-session/:scheduleId', authMiddleware, bookSessionValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }

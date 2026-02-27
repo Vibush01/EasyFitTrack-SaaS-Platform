@@ -5,6 +5,8 @@ const cloudinary = require('cloudinary').v2;
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { gymUpdateValidation, joinGymValidation, memberIdValidation, trainerIdValidation, requestActionValidation, membershipRequestActionValidation } = require('../validators/gym.validators');
 const Gym = require('../models/Gym');
 const Member = require('../models/Member');
 const Trainer = require('../models/Trainer');
@@ -49,7 +51,7 @@ router.get('/', async (req, res) => {
 });
 
 // Send join request (Member/Trainer)
-router.post('/join/:gymId', authMiddleware, async (req, res) => {
+router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (req, res) => {
     if (req.user.role !== 'member' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -121,7 +123,7 @@ router.post('/join/:gymId', authMiddleware, async (req, res) => {
 });
 
 // Update gym details (including photo upload/delete)
-router.put('/update', authMiddleware, upload.array('photos', 5), async (req, res) => {
+router.put('/update', authMiddleware, upload.array('photos', 5), gymUpdateValidation, validate, async (req, res) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -350,7 +352,7 @@ router.get('/trainers', authMiddleware, async (req, res) => {
 });
 
 // Remove a member from the gym (Gym only)
-router.delete('/members/:memberId', authMiddleware, async (req, res) => {
+router.delete('/members/:memberId', authMiddleware, memberIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -400,7 +402,7 @@ router.delete('/members/:memberId', authMiddleware, async (req, res) => {
 });
 
 // // Remove a trainer from the gym (Gym only)
-router.delete('/trainers/:trainerId', authMiddleware, async (req, res) => {
+router.delete('/trainers/:trainerId', authMiddleware, trainerIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -594,7 +596,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Accept join request (Gym and Trainers)
-router.post('/requests/:requestId/accept', authMiddleware, async (req, res) => {
+router.post('/requests/:requestId/accept', authMiddleware, requestActionValidation, validate, async (req, res) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -679,7 +681,7 @@ router.post('/requests/:requestId/accept', authMiddleware, async (req, res) => {
 });
 
 // Deny join request (Gym and Trainers)
-router.post('/requests/:requestId/deny', authMiddleware, async (req, res) => {
+router.post('/requests/:requestId/deny', authMiddleware, requestActionValidation, validate, async (req, res) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -729,7 +731,7 @@ router.post('/requests/:requestId/deny', authMiddleware, async (req, res) => {
 });
 
 // Update membership (Gym and Trainers)
-router.put('/members/:memberId/membership', authMiddleware, async (req, res) => {
+router.put('/members/:memberId/membership', authMiddleware, memberIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -819,7 +821,7 @@ router.put('/members/:memberId/membership', authMiddleware, async (req, res) => 
 });
 
 // Approve or deny membership request (Gym and Trainers)
-router.post('/membership-requests/:requestId/action', authMiddleware, async (req, res) => {
+router.post('/membership-requests/:requestId/action', authMiddleware, membershipRequestActionValidation, validate, async (req, res) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }

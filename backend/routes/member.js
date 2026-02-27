@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const authMiddleware = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { macroLogValidation, macroIdValidation, progressLogValidation, progressIdValidation, membershipUpdateValidation } = require('../validators/member.validators');
 const Member = require('../models/Member');
 const Gym = require('../models/Gym');
 const EventLog = require('../models/EventLog');
@@ -16,16 +18,12 @@ const upload = multer({ storage });
 
 
 // Log a macro entry (Member only)
-router.post('/macros', authMiddleware, async (req, res) => {
+router.post('/macros', authMiddleware, macroLogValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { food, macros } = req.body;
-
-    if (!food || !macros || !macros.calories || !macros.protein || !macros.carbs || !macros.fats) {
-        return res.status(400).json({ message: 'Food and macros (calories, protein, carbs, fats) are required' });
-    }
 
     try {
         const macroLog = new MacroLog({
@@ -56,16 +54,12 @@ router.get('/macros', authMiddleware, async (req, res) => {
 });
 
 // Update a macro log
-router.put('/macros/:id', authMiddleware, async (req, res) => {
+router.put('/macros/:id', authMiddleware, macroIdValidation, macroLogValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { food, macros } = req.body;
-
-    if (!food || !macros || !macros.calories || !macros.protein || !macros.carbs || !macros.fats) {
-        return res.status(400).json({ message: 'Food and macros (calories, protein, carbs, fats) are required' });
-    }
 
     try {
         const macroLog = await MacroLog.findById(req.params.id);
@@ -88,7 +82,7 @@ router.put('/macros/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete a macro log
-router.delete('/macros/:id', authMiddleware, async (req, res) => {
+router.delete('/macros/:id', authMiddleware, macroIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -111,16 +105,12 @@ router.delete('/macros/:id', authMiddleware, async (req, res) => {
 });
 
 // Log a progress entry (Member only)
-router.post('/progress', authMiddleware, upload.array('images', 3), async (req, res) => {
+router.post('/progress', authMiddleware, upload.array('images', 3), progressLogValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { weight, muscleMass, fatPercentage } = req.body;
-
-    if (!weight || !muscleMass || !fatPercentage) {
-        return res.status(400).json({ message: 'Weight, muscle mass, and fat percentage are required' });
-    }
 
     try {
         let images = [];
@@ -169,16 +159,12 @@ router.get('/progress', authMiddleware, async (req, res) => {
 });
 
 // Update a progress log
-router.put('/progress/:id', authMiddleware, upload.array('images', 3), async (req, res) => {
+router.put('/progress/:id', authMiddleware, upload.array('images', 3), progressIdValidation, progressLogValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { weight, muscleMass, fatPercentage, deleteImages } = req.body;
-
-    if (!weight || !muscleMass || !fatPercentage) {
-        return res.status(400).json({ message: 'Weight, muscle mass, and fat percentage are required' });
-    }
 
     try {
         const progressLog = await ProgressLog.findById(req.params.id);
@@ -229,7 +215,7 @@ router.put('/progress/:id', authMiddleware, upload.array('images', 3), async (re
 });
 
 // Delete a progress log
-router.delete('/progress/:id', authMiddleware, async (req, res) => {
+router.delete('/progress/:id', authMiddleware, progressIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -303,21 +289,12 @@ router.post('/leave-gym', authMiddleware, async (req, res) => {
 });
 
 // Request membership update (Member only)
-router.post('/membership-request', authMiddleware, async (req, res) => {
+router.post('/membership-request', authMiddleware, membershipUpdateValidation, validate, async (req, res) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     const { requestedDuration } = req.body;
-
-    if (!requestedDuration) {
-        return res.status(400).json({ message: 'Requested duration is required' });
-    }
-
-    const validDurations = ['1 week', '1 month', '3 months', '6 months', '1 year'];
-    if (!validDurations.includes(requestedDuration)) {
-        return res.status(400).json({ message: 'Invalid membership duration' });
-    }
 
     try {
         const member = await Member.findById(req.user.id);

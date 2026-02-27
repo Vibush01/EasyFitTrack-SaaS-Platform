@@ -1,15 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
+const validate = require('../middleware/validate');
 const ContactMessage = require('../models/ContactMessage');
+const { contactValidation, messageIdValidation } = require('../validators/contact.validators');
 
 // Submit a contact message (public route)
-router.post('/messages', async (req, res) => {
+router.post('/messages', contactValidation, validate, async (req, res) => {
     const { name, email, phone, subject, message } = req.body;
-
-    if (!name || !email || !phone || !subject || !message) {
-        return res.status(400).json({ message: 'All fields are required' });
-    }
 
     try {
         const contactMessage = new ContactMessage({
@@ -42,7 +40,7 @@ router.get('/messages', authMiddleware, async (req, res) => {
 });
 
 // Delete a contact message (Admin only)
-router.delete('/messages/:id', authMiddleware, async (req, res) => {
+router.delete('/messages/:id', authMiddleware, messageIdValidation, validate, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Access denied' });
     }

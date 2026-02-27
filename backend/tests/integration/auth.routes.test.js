@@ -70,7 +70,12 @@ describe('Auth API Routes', () => {
                 });
 
             expect(res.status).toBe(400);
-            expect(res.body.message).toBe('Invalid role');
+            expect(res.body.message).toBe('Validation failed');
+            expect(res.body.errors).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ field: 'role', message: 'Invalid role' }),
+                ])
+            );
         });
     });
 
@@ -113,7 +118,9 @@ describe('Auth API Routes', () => {
                 });
 
             expect(res.status).toBe(400);
-            expect(res.body.message).toBe('Email, password, and role are required');
+            expect(res.body.message).toBe('Validation failed');
+            expect(res.body.errors).toBeDefined();
+            expect(res.body.errors.length).toBeGreaterThan(0);
         });
     });
 
