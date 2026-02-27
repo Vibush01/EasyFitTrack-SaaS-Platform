@@ -46,12 +46,10 @@ app.set('socketio', io);
 
 // Socket.IO connection
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
 
     // Join a gym room
     socket.on('joinGym', (gymId) => {
         socket.join(gymId);
-        console.log(`User ${socket.id} joined gym ${gymId}`);
     });
 
     // Handle chat messages
@@ -95,7 +93,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
     });
 });
 
@@ -115,4 +112,8 @@ app.get('/api/test', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5001;
-httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+if (process.env.NODE_ENV !== 'test') {
+    httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+module.exports = app;

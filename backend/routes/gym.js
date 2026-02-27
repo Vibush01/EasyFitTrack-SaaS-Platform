@@ -134,8 +134,6 @@ router.put('/update', authMiddleware, upload.array('photos', 5), async (req, res
 
         const { gymName, address, ownerName, ownerEmail, membershipPlans, deletePhotos } = req.body;
 
-        console.log('Received membershipPlans:', membershipPlans); // Add logging
-        console.log('Type of membershipPlans:', typeof membershipPlans); // Check the type
 
         if (gymName) gym.gymName = gymName;
         if (address) gym.address = address;
@@ -271,7 +269,6 @@ router.get('/members', authMiddleware, async (req, res) => {
 
         let gym;
         if (req.user.role === 'gym') {
-            console.log(`Fetching gym with ID ${req.user.id} for gym role`);
             gym = await Gym.findById(req.user.id);
             if (!gym) {
                 console.error(`Gym not found for ID ${req.user.id}`);
@@ -283,7 +280,6 @@ router.get('/members', authMiddleware, async (req, res) => {
                 match: { _id: { $ne: null } }, // Ensure member exists
             });
         } else {
-            console.log(`Fetching trainer with ID ${req.user.id} for trainer role`);
             const trainer = await Trainer.findById(req.user.id);
             if (!trainer) {
                 console.error(`Trainer not found for ID ${req.user.id}`);
@@ -293,7 +289,6 @@ router.get('/members', authMiddleware, async (req, res) => {
                 console.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
                 return res.status(404).json({ message: 'Trainer not associated with a gym' });
             }
-            console.log(`Fetching gym with ID ${trainer.gym} for trainer`);
             gym = await Gym.findById(trainer.gym).populate({
                 path: 'members',
                 select: 'name email membership',
@@ -306,13 +301,7 @@ router.get('/members', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Gym not found' });
         }
 
-        // Log the gym document to debug
-        console.log('Gym document:', gym);
-
-        // Handle case where members array might be null or undefined
         const members = gym.members || [];
-        console.log('Members after population:', members);
-
         res.json(members);
     } catch (error) {
         console.error('Error in GET /members:', error);
@@ -339,7 +328,6 @@ router.get('/trainers', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Invalid gym ID' });
         }
 
-        console.log(`Fetching gym with ID ${req.user.id} for gym role`);
         const gym = await Gym.findById(req.user.id).populate({
             path: 'trainers',
             select: 'name email',
@@ -351,12 +339,8 @@ router.get('/trainers', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Gym not found' });
         }
 
-        // Log the gym document to debug
-        console.log('Gym document:', gym);
 
-        // Handle case where trainers array might be null or undefined
         const trainers = gym.trainers || [];
-        console.log('Trainers after population:', trainers);
 
         res.json(trainers);
     } catch (error) {
@@ -472,7 +456,6 @@ router.get('/members', authMiddleware, async (req, res) => {
 
         let gym;
         if (req.user.role === 'gym') {
-            console.log(`Fetching gym with ID ${req.user.id} for gym role`);
             gym = await Gym.findById(req.user.id);
             if (!gym) {
                 console.error(`Gym not found for ID ${req.user.id}`);
@@ -484,7 +467,6 @@ router.get('/members', authMiddleware, async (req, res) => {
                 match: { _id: { $ne: null } }, // Ensure member exists
             });
         } else {
-            console.log(`Fetching trainer with ID ${req.user.id} for trainer role`);
             const trainer = await Trainer.findById(req.user.id);
             if (!trainer) {
                 console.error(`Trainer not found for ID ${req.user.id}`);
@@ -494,7 +476,6 @@ router.get('/members', authMiddleware, async (req, res) => {
                 console.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
                 return res.status(404).json({ message: 'Trainer not associated with a gym' });
             }
-            console.log(`Fetching gym with ID ${trainer.gym} for trainer`);
             gym = await Gym.findById(trainer.gym).populate({
                 path: 'members',
                 select: 'name email membership',
@@ -507,13 +488,7 @@ router.get('/members', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Gym not found' });
         }
 
-        // Log the gym document to debug
-        console.log('Gym document:', gym);
-
-        // Handle case where members array might be null or undefined
         const members = gym.members || [];
-        console.log('Members after population:', members);
-
         res.json(members);
     } catch (error) {
         console.error('Error in GET /members:', error);
@@ -536,10 +511,8 @@ router.get('/membership-requests', authMiddleware, async (req, res) => {
 
         let gym;
         if (req.user.role === 'gym') {
-            console.log(`Fetching gym with ID ${req.user.id} for gym role`);
             gym = await Gym.findById(req.user.id);
         } else {
-            console.log(`Fetching trainer with ID ${req.user.id} for trainer role`);
             const trainer = await Trainer.findById(req.user.id);
             if (!trainer) {
                 console.error(`Trainer not found for ID ${req.user.id}`);
@@ -549,7 +522,6 @@ router.get('/membership-requests', authMiddleware, async (req, res) => {
                 console.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
                 return res.status(404).json({ message: 'Trainer not associated with a gym' });
             }
-            console.log(`Fetching gym with ID ${trainer.gym} for trainer`);
             gym = await Gym.findById(trainer.gym);
         }
 
@@ -558,7 +530,6 @@ router.get('/membership-requests', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Gym not found' });
         }
 
-        console.log('Gym document:', gym);
 
         const membershipRequests = await MembershipRequest.find({ gym: gym._id })
             .populate({
@@ -570,7 +541,6 @@ router.get('/membership-requests', authMiddleware, async (req, res) => {
 
         // Filter out requests where member population failed (null)
         const validRequests = membershipRequests.filter((req) => req.member !== null);
-        console.log('Membership requests after population:', validRequests);
 
         res.json(validRequests);
     } catch (error) {
