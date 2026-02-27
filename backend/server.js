@@ -1,6 +1,8 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const configureCloudinary = require('./config/cloudinary');
 const authRoutes = require('./routes/auth');
@@ -27,14 +29,35 @@ const io = new Server(httpServer, {
 });
 
 
+// Security: Helmet sets secure HTTP headers
+app.use(helmet());
+
+// Rate Limiting: Global limiter (100 requests per 15 minutes per IP)
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many requests, please try again later' },
+});
+app.use(globalLimiter);
+
+// Rate Limiting: Strict limiter for auth routes (10 requests per 15 minutes per IP)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many authentication attempts, please try again later' },
+});
+
 // Middleware
 app.use(cors({
     origin: ['http://localhost:5173', 'https://easyfittrack.netlify.app'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
-    allowedHeaders: ['Content-Type', 'Authorization'], // Allow these headers
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Middleware
 app.use(express.json());
 
 // Connect to MongoDB and Cloudinary
@@ -97,7 +120,7 @@ io.on('connection', (socket) => {
 });
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/gym', gymRoutes);
 app.use('/api/member', memberRoutes);
 app.use('/api/chat', chatRoutes);
