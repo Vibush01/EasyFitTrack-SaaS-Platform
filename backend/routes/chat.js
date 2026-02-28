@@ -8,7 +8,7 @@ const Member = require('../models/Member');
 const Gym = require('../models/Gym');
 
 // Get chat messages between sender and receiver within a gym
-router.get('/messages/:gymId/:receiverId', authMiddleware, async (req, res) => {
+router.get('/messages/:gymId/:receiverId', authMiddleware, async (req, res, next) => {
     const { gymId, receiverId } = req.params;
 
     try {
@@ -46,12 +46,12 @@ router.get('/messages/:gymId/:receiverId', authMiddleware, async (req, res) => {
 
         res.json(messages);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Post an announcement (Gym only)
-router.post('/announcements', authMiddleware, async (req, res) => {
+router.post('/announcements', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -78,12 +78,12 @@ router.post('/announcements', authMiddleware, async (req, res) => {
 
         res.status(201).json({ message: 'Announcement posted', announcement });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Update an announcement (Gym only)
-router.put('/announcements/:id', authMiddleware, async (req, res) => {
+router.put('/announcements/:id', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -113,12 +113,12 @@ router.put('/announcements/:id', authMiddleware, async (req, res) => {
 
         res.json({ message: 'Announcement updated', announcement });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Delete an announcement (Gym only)
-router.delete('/announcements/:id', authMiddleware, async (req, res) => {
+router.delete('/announcements/:id', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -141,12 +141,12 @@ router.delete('/announcements/:id', authMiddleware, async (req, res) => {
 
         res.json({ message: 'Announcement deleted' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get announcements for a Member's gym
-router.get('/announcements', authMiddleware, async (req, res) => {
+router.get('/announcements', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -163,12 +163,12 @@ router.get('/announcements', authMiddleware, async (req, res) => {
 
         res.json(announcements);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get announcements for a Gym Profile
-router.get('/announcements/gym', authMiddleware, async (req, res) => {
+router.get('/announcements/gym', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -180,7 +180,7 @@ router.get('/announcements/gym', authMiddleware, async (req, res) => {
 
         res.json(announcements);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 

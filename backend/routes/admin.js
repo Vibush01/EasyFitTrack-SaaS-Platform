@@ -7,7 +7,7 @@ const Trainer = require('../models/Trainer');
 const EventLog = require('../models/EventLog');
 
 // Get all gyms (Admin only)
-router.get('/gyms', authMiddleware, async (req, res) => {
+router.get('/gyms', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -19,12 +19,12 @@ router.get('/gyms', authMiddleware, async (req, res) => {
             .populate('trainers', 'name email');
         res.json(gyms);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Delete a gym (Admin only)
-router.delete('/gyms/:id', authMiddleware, async (req, res) => {
+router.delete('/gyms/:id', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -53,12 +53,12 @@ router.delete('/gyms/:id', authMiddleware, async (req, res) => {
 
         res.json({ message: 'Gym deleted' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get analytics data (Admin only)
-router.get('/analytics', authMiddleware, async (req, res) => {
+router.get('/analytics', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -99,7 +99,7 @@ router.get('/analytics', authMiddleware, async (req, res) => {
             events,
         });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 

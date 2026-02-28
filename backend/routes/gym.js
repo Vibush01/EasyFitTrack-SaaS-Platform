@@ -19,7 +19,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Get all gyms (for Members/Trainers to browse)
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
     try {
         const gyms = await Gym.find().select('-password');
 
@@ -46,12 +46,12 @@ router.get('/', async (req, res) => {
         res.json(gyms);
     } catch (error) {
         console.error('Error in GET /gyms:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Send join request (Member/Trainer)
-router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (req, res) => {
+router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -118,12 +118,12 @@ router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (
         res.status(201).json({ message: 'Join request sent', joinRequest });
     } catch (error) {
         console.error('Error in POST /join/:gymId:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Update gym details (including photo upload/delete)
-router.put('/update', authMiddleware, upload.array('photos', 5), gymUpdateValidation, validate, async (req, res) => {
+router.put('/update', authMiddleware, upload.array('photos', 5), gymUpdateValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -202,12 +202,12 @@ router.put('/update', authMiddleware, upload.array('photos', 5), gymUpdateValida
         res.json({ message: 'Gym updated', gym });
     } catch (error) {
         console.error('Error in PUT /update:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get join requests (Gym and Trainers)
-router.get('/requests', authMiddleware, async (req, res) => {
+router.get('/requests', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -246,12 +246,12 @@ router.get('/requests', authMiddleware, async (req, res) => {
         res.json(pendingRequests);
     } catch (error) {
         console.error('Error in GET /requests:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get members for membership management (Gym and Trainers)
-router.get('/members', authMiddleware, async (req, res) => {
+router.get('/members', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -307,12 +307,12 @@ router.get('/members', authMiddleware, async (req, res) => {
         res.json(members);
     } catch (error) {
         console.error('Error in GET /members:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get trainers for membership management (Gym only)
-router.get('/trainers', authMiddleware, async (req, res) => {
+router.get('/trainers', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -347,12 +347,12 @@ router.get('/trainers', authMiddleware, async (req, res) => {
         res.json(trainers);
     } catch (error) {
         console.error('Error in GET /trainers:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Remove a member from the gym (Gym only)
-router.delete('/members/:memberId', authMiddleware, memberIdValidation, validate, async (req, res) => {
+router.delete('/members/:memberId', authMiddleware, memberIdValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -397,12 +397,12 @@ router.delete('/members/:memberId', authMiddleware, memberIdValidation, validate
         res.json({ message: 'Member removed successfully' });
     } catch (error) {
         console.error('Error in DELETE /members/:memberId:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // // Remove a trainer from the gym (Gym only)
-router.delete('/trainers/:trainerId', authMiddleware, trainerIdValidation, validate, async (req, res) => {
+router.delete('/trainers/:trainerId', authMiddleware, trainerIdValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'gym') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -439,12 +439,12 @@ router.delete('/trainers/:trainerId', authMiddleware, trainerIdValidation, valid
         res.json({ message: 'Trainer removed successfully' });
     } catch (error) {
         console.error('Error in DELETE /trainers/:trainerId:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get members for membership management (Gym and Trainers)
-router.get('/members', authMiddleware, async (req, res) => {
+router.get('/members', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -494,12 +494,12 @@ router.get('/members', authMiddleware, async (req, res) => {
         res.json(members);
     } catch (error) {
         console.error('Error in GET /members:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get membership requests (Gym and Trainers)
-router.get('/membership-requests', authMiddleware, async (req, res) => {
+router.get('/membership-requests', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -547,12 +547,12 @@ router.get('/membership-requests', authMiddleware, async (req, res) => {
         res.json(validRequests);
     } catch (error) {
         console.error('Error in GET /membership-requests:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get specific gym details (MUST BE AFTER /members and /membership-requests routes)
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
     try {
         // Validate the ID parameter
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -591,12 +591,12 @@ router.get('/:id', async (req, res) => {
         res.json(gym);
     } catch (error) {
         console.error('Error in GET /:id:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Accept join request (Gym and Trainers)
-router.post('/requests/:requestId/accept', authMiddleware, requestActionValidation, validate, async (req, res) => {
+router.post('/requests/:requestId/accept', authMiddleware, requestActionValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -676,12 +676,12 @@ router.post('/requests/:requestId/accept', authMiddleware, requestActionValidati
         res.json({ message: 'Request accepted' });
     } catch (error) {
         console.error('Error in POST /requests/:requestId/accept:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Deny join request (Gym and Trainers)
-router.post('/requests/:requestId/deny', authMiddleware, requestActionValidation, validate, async (req, res) => {
+router.post('/requests/:requestId/deny', authMiddleware, requestActionValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -726,12 +726,12 @@ router.post('/requests/:requestId/deny', authMiddleware, requestActionValidation
         res.json({ message: 'Request denied' });
     } catch (error) {
         console.error('Error in POST /requests/:requestId/deny:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Update membership (Gym and Trainers)
-router.put('/members/:memberId/membership', authMiddleware, memberIdValidation, validate, async (req, res) => {
+router.put('/members/:memberId/membership', authMiddleware, memberIdValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -816,12 +816,12 @@ router.put('/members/:memberId/membership', authMiddleware, memberIdValidation, 
         res.json({ message: 'Membership updated', member });
     } catch (error) {
         console.error('Error in PUT /members/:memberId/membership:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Approve or deny membership request (Gym and Trainers)
-router.post('/membership-requests/:requestId/action', authMiddleware, membershipRequestActionValidation, validate, async (req, res) => {
+router.post('/membership-requests/:requestId/action', authMiddleware, membershipRequestActionValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -906,7 +906,7 @@ router.post('/membership-requests/:requestId/action', authMiddleware, membership
         res.json({ message: `Membership request ${action}d`, membershipRequest });
     } catch (error) {
         console.error('Error in POST /membership-requests/:requestId/action:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 

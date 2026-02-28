@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const configureCloudinary = require('./config/cloudinary');
+const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const gymRoutes = require('./routes/gym');
 const memberRoutes = require('./routes/member');
@@ -133,6 +134,9 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.get('/api/test', (req, res) => {
     res.json({ message: 'Backend is running' });
 });
+
+// Global Error Handler (must be after all routes)
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 if (process.env.NODE_ENV !== 'test') {
