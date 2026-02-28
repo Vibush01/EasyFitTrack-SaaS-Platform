@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { gymUpdateValidation, joinGymValidation, memberIdValidation, trainerIdValidation, requestActionValidation, membershipRequestActionValidation } = require('../validators/gym.validators');
+const paginate = require('../utils/paginate');
 const Gym = require('../models/Gym');
 const Member = require('../models/Member');
 const Trainer = require('../models/Trainer');
@@ -21,7 +22,9 @@ const upload = multer({ storage });
 // Get all gyms (for Members/Trainers to browse)
 router.get('/', async (req, res, next) => {
     try {
-        const gyms = await Gym.find().select('-password');
+        const filter = {};
+        const query = Gym.find(filter).select('-password');
+        const result = await paginate(Gym, filter, query, req);
 
         // Log page view event if user is authenticated
         if (req.headers.authorization) {
@@ -43,7 +46,7 @@ router.get('/', async (req, res, next) => {
             await eventLog.save();
         }
 
-        res.json(gyms);
+        res.json(result);
     } catch (error) {
         console.error('Error in GET /gyms:', error);
         next(error);

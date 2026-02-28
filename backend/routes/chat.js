@@ -6,6 +6,7 @@ const Announcement = require('../models/Announcement');
 const Trainer = require('../models/Trainer');
 const Member = require('../models/Member');
 const Gym = require('../models/Gym');
+const paginate = require('../utils/paginate');
 
 // Get chat messages between sender and receiver within a gym
 router.get('/messages/:gymId/:receiverId', authMiddleware, async (req, res, next) => {
@@ -157,11 +158,12 @@ router.get('/announcements', authMiddleware, async (req, res, next) => {
             return res.status(404).json({ message: 'Member not found or not associated with a gym' });
         }
 
-        const announcements = await Announcement.find({ gym: member.gym })
+        const filter = { gym: member.gym };
+        const query = Announcement.find(filter)
             .populate('sender', 'name email gymName')
             .sort({ timestamp: -1 });
-
-        res.json(announcements);
+        const result = await paginate(Announcement, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }
@@ -174,11 +176,12 @@ router.get('/announcements/gym', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const announcements = await Announcement.find({ gym: req.user.id })
+        const filter = { gym: req.user.id };
+        const query = Announcement.find(filter)
             .populate('sender', 'name email gymName')
             .sort({ timestamp: -1 });
-
-        res.json(announcements);
+        const result = await paginate(Announcement, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }

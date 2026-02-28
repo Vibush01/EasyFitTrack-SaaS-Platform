@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const ContactMessage = require('../models/ContactMessage');
 const { contactValidation, messageIdValidation } = require('../validators/contact.validators');
+const paginate = require('../utils/paginate');
 
 // Submit a contact message (public route)
 router.post('/messages', contactValidation, validate, async (req, res, next) => {
@@ -32,8 +33,10 @@ router.get('/messages', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const messages = await ContactMessage.find().sort({ createdAt: -1 });
-        res.json(messages);
+        const filter = {};
+        const query = ContactMessage.find(filter).sort({ createdAt: -1 });
+        const result = await paginate(ContactMessage, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }

@@ -4,6 +4,7 @@ const multer = require('multer');
 const authMiddleware = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { macroLogValidation, macroIdValidation, progressLogValidation, progressIdValidation, membershipUpdateValidation } = require('../validators/member.validators');
+const paginate = require('../utils/paginate');
 const Member = require('../models/Member');
 const Gym = require('../models/Gym');
 const EventLog = require('../models/EventLog');
@@ -46,8 +47,10 @@ router.get('/macros', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const macroLogs = await MacroLog.find({ member: req.user.id }).sort({ date: -1 });
-        res.json(macroLogs);
+        const filter = { member: req.user.id };
+        const query = MacroLog.find(filter).sort({ date: -1 });
+        const result = await paginate(MacroLog, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }
@@ -151,8 +154,10 @@ router.get('/progress', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const progressLogs = await ProgressLog.find({ member: req.user.id }).sort({ date: -1 });
-        res.json(progressLogs);
+        const filter = { member: req.user.id };
+        const query = ProgressLog.find(filter).sort({ date: -1 });
+        const result = await paginate(ProgressLog, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }
@@ -352,11 +357,12 @@ router.get('/membership-requests', authMiddleware, async (req, res, next) => {
             return res.status(404).json({ message: 'Member not found or not in a gym' });
         }
 
-        const membershipRequests = await MembershipRequest.find({ member: req.user.id })
+        const filter = { member: req.user.id };
+        const query = MembershipRequest.find(filter)
             .populate('gym', 'gymName')
             .sort({ createdAt: -1 });
-
-        res.json(membershipRequests);
+        const result = await paginate(MembershipRequest, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }

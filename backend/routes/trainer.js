@@ -9,6 +9,7 @@ const {
     planRequestValidation, planRequestActionValidation,
     trainerScheduleValidation, bookSessionValidation,
 } = require('../validators/trainer.validators');
+const paginate = require('../utils/paginate');
 const WorkoutPlan = require('../models/WorkoutPlan');
 const WorkoutSchedule = require('../models/WorkoutSchedule');
 const PlanRequest = require('../models/PlanRequest');
@@ -73,10 +74,12 @@ router.get('/workout-plans', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const workoutPlans = await WorkoutPlan.find({ trainer: req.user.id })
+        const filter = { trainer: req.user.id };
+        const query = WorkoutPlan.find(filter)
             .populate('member', 'name email')
             .sort({ createdAt: -1 });
-        res.json(workoutPlans);
+        const result = await paginate(WorkoutPlan, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }
@@ -193,10 +196,12 @@ router.get('/diet-plans', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const dietPlans = await DietPlan.find({ trainer: req.user.id })
+        const filter = { trainer: req.user.id };
+        const query = DietPlan.find(filter)
             .populate('member', 'name email')
             .sort({ createdAt: -1 });
-        res.json(dietPlans);
+        const result = await paginate(DietPlan, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }
@@ -460,11 +465,13 @@ router.get('/member/plan-requests', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const planRequests = await PlanRequest.find({ member: req.user.id })
+        const filter = { member: req.user.id };
+        const query = PlanRequest.find(filter)
             .populate('trainer', 'name email')
             .populate('gym', 'gymName')
             .sort({ createdAt: -1 });
-        res.json(planRequests);
+        const result = await paginate(PlanRequest, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }
@@ -477,11 +484,13 @@ router.get('/plan-requests', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const planRequests = await PlanRequest.find({ trainer: req.user.id })
+        const filter = { trainer: req.user.id };
+        const query = PlanRequest.find(filter)
             .populate('member', 'name email')
             .populate('gym', 'gymName')
             .sort({ createdAt: -1 });
-        res.json(planRequests);
+        const result = await paginate(PlanRequest, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }

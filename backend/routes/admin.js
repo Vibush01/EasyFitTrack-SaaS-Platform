@@ -5,6 +5,7 @@ const Gym = require('../models/Gym');
 const Member = require('../models/Member');
 const Trainer = require('../models/Trainer');
 const EventLog = require('../models/EventLog');
+const paginate = require('../utils/paginate');
 
 // Get all gyms (Admin only)
 router.get('/gyms', authMiddleware, async (req, res, next) => {
@@ -13,11 +14,12 @@ router.get('/gyms', authMiddleware, async (req, res, next) => {
     }
 
     try {
-        const gyms = await Gym.find()
-            .select('-password')
+        const filter = {};
+        const query = Gym.find(filter)
             .populate('members', 'name email membership')
             .populate('trainers', 'name email');
-        res.json(gyms);
+        const result = await paginate(Gym, filter, query, req);
+        res.json(result);
     } catch (error) {
         next(error);
     }
