@@ -27,7 +27,7 @@ const MacroCalculator = () => {
                 const res = await axios.get(`${API_URL}/member/macros`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setLogs(res.data);
+                setLogs(res.data.data || res.data);
             } catch (err) {
                 setError('Failed to fetch macro logs');
                 toast.error('Failed to fetch macro logs' + err, { position: 'top-right' });

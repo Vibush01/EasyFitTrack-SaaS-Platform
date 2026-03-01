@@ -35,7 +35,7 @@ const RequestPlan = () => {
                 const res = await axios.get(`${API_URL}/trainer/member/plan-requests`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setRequests(res.data);
+                setRequests(res.data.data || res.data);
             } catch (err) {
                 toast.error('Failed to fetch plan requests' + err, { position: "top-right" });
             }
@@ -52,7 +52,7 @@ const RequestPlan = () => {
                 });
 
                 const combinedPlans = [
-                    ...workoutPlansRes.data.map((plan) => ({
+                    ...(workoutPlansRes.data.data || workoutPlansRes.data).map((plan) => ({
                         type: 'Workout Plan',
                         title: plan.title,
                         description: plan.exercises.map((ex) => `${ex.name}: ${ex.sets} sets, ${ex.reps} reps, Rest: ${ex.rest || 'N/A'}`).join('; '),
@@ -60,7 +60,7 @@ const RequestPlan = () => {
                         gym: plan.gym,
                         receivedOn: plan.createdAt,
                     })),
-                    ...dietPlansRes.data.map((plan) => ({
+                    ...(dietPlansRes.data.data || dietPlansRes.data).map((plan) => ({
                         type: 'Diet Plan',
                         title: plan.title,
                         description: plan.meals.map((meal) => `${meal.name}: ${meal.calories} kcal, Protein: ${meal.protein}g, Carbs: ${meal.carbs}g, Fats: ${meal.fats}g, Time: ${meal.time || 'N/A'}`).join('; '),

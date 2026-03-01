@@ -34,7 +34,7 @@ const GymDashboard = () => {
                     const res = await axios.get(`${API_URL}/chat/announcements/gym`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
-                    setAnnouncements(res.data);
+                    setAnnouncements(res.data.data || res.data);
                 } catch (err) {
                     toast.error('Failed to fetch announcements' + err, { position: "top-right" });
                 }

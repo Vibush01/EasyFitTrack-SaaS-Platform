@@ -37,12 +37,12 @@ const WorkoutPlans = () => {
                 const workoutRes = await axios.get(`${API_URL}/trainer/workout-plans`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setPlans(workoutRes.data);
+                setPlans(workoutRes.data.data || workoutRes.data);
 
                 const dietRes = await axios.get(`${API_URL}/trainer/diet-plans`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setDietPlans(dietRes.data);
+                setDietPlans(dietRes.data.data || dietRes.data);
             } catch (err) {
                 setError('Failed to fetch plans');
                 toast.error('Failed to fetch plans' + err, { position: 'top-right' });
@@ -55,7 +55,7 @@ const WorkoutPlans = () => {
                 const res = await axios.get(`${API_URL}/trainer/plan-requests`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setRequests(res.data);
+                setRequests(res.data.data || res.data);
             } catch (err) {
                 setError('Failed to fetch plan requests');
                 toast.error('Failed to fetch plan requests' + err, { position: 'top-right' });

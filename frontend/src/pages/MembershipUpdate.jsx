@@ -18,7 +18,7 @@ const MembershipUpdate = () => {
                 const res = await axios.get(`${API_URL}/member/membership-requests`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setRequests(res.data);
+                setRequests(res.data.data || res.data);
             } catch (err) {
                 toast.error('Failed to fetch membership requests' + err, { position: "top-right" });
             }

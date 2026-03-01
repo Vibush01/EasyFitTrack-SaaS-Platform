@@ -16,7 +16,7 @@ const GymList = () => {
         const fetchGyms = async () => {
             try {
                 const res = await axios.get(`${API_URL}/gym`);
-                setGyms(res.data);
+                setGyms(res.data.data || res.data);
             } catch (err) {
                 setError('Failed to fetch gyms');
                 toast.error('Failed to fetch gyms' + err, { position: 'top-right' });
