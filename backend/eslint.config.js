@@ -44,6 +44,7 @@ module.exports = [
             'logs/',
             'coverage/',
             'tests/',
+            'docs/',
             'vitest.config.js',
             'eslint.config.js',
         ],
