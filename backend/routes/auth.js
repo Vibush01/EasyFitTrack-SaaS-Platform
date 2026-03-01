@@ -18,7 +18,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Register
-router.post('/register', upload.array('photos', 5), registerValidation, validate, async (req, res) => {
+router.post('/register', upload.array('photos', 5), registerValidation, validate, async (req, res, next) => {
     const { role, ...data } = req.body;
 
     try {
@@ -86,12 +86,12 @@ router.post('/register', upload.array('photos', 5), registerValidation, validate
 
         res.status(201).json({ token, user: { id: user._id, email: user.email, role: user.role } });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Login
-router.post('/login', loginValidation, validate, async (req, res) => {
+router.post('/login', loginValidation, validate, async (req, res, next) => {
     const { email, password, role } = req.body;
 
     try {
@@ -144,12 +144,12 @@ router.post('/login', loginValidation, validate, async (req, res) => {
         res.json({ token, user: { id: user._id, email: user.email, role: user.role } });
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get Profile
-router.get('/profile', authMiddleware, async (req, res) => {
+router.get('/profile', authMiddleware, async (req, res, next) => {
     try {
         let user;
         switch (req.user.role) {
@@ -171,12 +171,12 @@ router.get('/profile', authMiddleware, async (req, res) => {
         }
         res.json(user);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Update Profile
-router.put('/profile', authMiddleware, upload.single('profileImage'), profileUpdateValidation, validate, async (req, res) => {
+router.put('/profile', authMiddleware, upload.single('profileImage'), profileUpdateValidation, validate, async (req, res, next) => {
     const { name, password } = req.body;
 
     try {
@@ -237,7 +237,7 @@ router.put('/profile', authMiddleware, upload.single('profileImage'), profileUpd
 
         res.json({ message: 'Profile updated', user: { id: user._id, name: user.name, email: user.email, role: user.role, profileImage: user.profileImage } });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 

@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const configureCloudinary = require('./config/cloudinary');
+const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const gymRoutes = require('./routes/gym');
 const memberRoutes = require('./routes/member');
@@ -14,7 +15,7 @@ const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const ChatMessage = require('./models/ChatMessage');
+const initializeSocket = require('./socket');
 
 
 
@@ -67,57 +68,8 @@ configureCloudinary();
 // Make io accessible to routes
 app.set('socketio', io);
 
-// Socket.IO connection
-io.on('connection', (socket) => {
-
-    // Join a gym room
-    socket.on('joinGym', (gymId) => {
-        socket.join(gymId);
-    });
-
-    // Handle chat messages
-    socket.on('sendMessage', async (messageData) => {
-        const { senderId, senderModel, receiverId, receiverModel, gymId, message } = messageData;
-
-        try {
-            const chatMessage = new ChatMessage({
-                sender: senderId,
-                senderModel,
-                receiver: receiverId,
-                receiverModel,
-                gym: gymId,
-                message,
-                status: 'sent',
-            });
-
-            await chatMessage.save();
-
-            // Emit the message to both sender and receiver
-            io.to(gymId).emit('message', chatMessage);
-        } catch (error) {
-            console.error('Error saving message:', error);
-        }
-    });
-
-    // Handle marking messages as read
-    socket.on('markMessagesAsRead', async ({ senderId, receiverId, gymId }) => {
-        try {
-            // Update all messages sent by senderId to receiverId that are 'sent' to 'read'
-            await ChatMessage.updateMany(
-                { sender: senderId, receiver: receiverId, status: 'sent' },
-                { $set: { status: 'read' } }
-            );
-
-            // Emit event to notify the sender that their messages were read
-            io.to(gymId).emit('messagesRead', { senderId, receiverId });
-        } catch (error) {
-            console.error('Error marking messages as read:', error);
-        }
-    });
-
-    socket.on('disconnect', () => {
-    });
-});
+// Initialize Socket.IO event handlers
+initializeSocket(io);
 
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
@@ -133,6 +85,9 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.get('/api/test', (req, res) => {
     res.json({ message: 'Backend is running' });
 });
+
+// Global Error Handler (must be after all routes)
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 if (process.env.NODE_ENV !== 'test') {

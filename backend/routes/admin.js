@@ -5,26 +5,28 @@ const Gym = require('../models/Gym');
 const Member = require('../models/Member');
 const Trainer = require('../models/Trainer');
 const EventLog = require('../models/EventLog');
+const paginate = require('../utils/paginate');
 
 // Get all gyms (Admin only)
-router.get('/gyms', authMiddleware, async (req, res) => {
+router.get('/gyms', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     try {
-        const gyms = await Gym.find()
-            .select('-password')
+        const filter = {};
+        const query = Gym.find(filter)
             .populate('members', 'name email membership')
             .populate('trainers', 'name email');
-        res.json(gyms);
+        const result = await paginate(Gym, filter, query, req);
+        res.json(result);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Delete a gym (Admin only)
-router.delete('/gyms/:id', authMiddleware, async (req, res) => {
+router.delete('/gyms/:id', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -53,12 +55,12 @@ router.delete('/gyms/:id', authMiddleware, async (req, res) => {
 
         res.json({ message: 'Gym deleted' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get analytics data (Admin only)
-router.get('/analytics', authMiddleware, async (req, res) => {
+router.get('/analytics', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -99,7 +101,7 @@ router.get('/analytics', authMiddleware, async (req, res) => {
             events,
         });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 

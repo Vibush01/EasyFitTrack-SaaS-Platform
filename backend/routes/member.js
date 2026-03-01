@@ -4,6 +4,7 @@ const multer = require('multer');
 const authMiddleware = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { macroLogValidation, macroIdValidation, progressLogValidation, progressIdValidation, membershipUpdateValidation } = require('../validators/member.validators');
+const paginate = require('../utils/paginate');
 const Member = require('../models/Member');
 const Gym = require('../models/Gym');
 const EventLog = require('../models/EventLog');
@@ -18,7 +19,7 @@ const upload = multer({ storage });
 
 
 // Log a macro entry (Member only)
-router.post('/macros', authMiddleware, macroLogValidation, validate, async (req, res) => {
+router.post('/macros', authMiddleware, macroLogValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -35,26 +36,28 @@ router.post('/macros', authMiddleware, macroLogValidation, validate, async (req,
         await macroLog.save();
         res.status(201).json({ message: 'Macro logged', macroLog });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get all macro logs for the member
-router.get('/macros', authMiddleware, async (req, res) => {
+router.get('/macros', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     try {
-        const macroLogs = await MacroLog.find({ member: req.user.id }).sort({ date: -1 });
-        res.json(macroLogs);
+        const filter = { member: req.user.id };
+        const query = MacroLog.find(filter).sort({ date: -1 });
+        const result = await paginate(MacroLog, filter, query, req);
+        res.json(result);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Update a macro log
-router.put('/macros/:id', authMiddleware, macroIdValidation, macroLogValidation, validate, async (req, res) => {
+router.put('/macros/:id', authMiddleware, macroIdValidation, macroLogValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -77,12 +80,12 @@ router.put('/macros/:id', authMiddleware, macroIdValidation, macroLogValidation,
 
         res.json({ message: 'Macro log updated', macroLog });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Delete a macro log
-router.delete('/macros/:id', authMiddleware, macroIdValidation, validate, async (req, res) => {
+router.delete('/macros/:id', authMiddleware, macroIdValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -100,12 +103,12 @@ router.delete('/macros/:id', authMiddleware, macroIdValidation, validate, async 
         await macroLog.deleteOne();
         res.json({ message: 'Macro log deleted' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Log a progress entry (Member only)
-router.post('/progress', authMiddleware, upload.array('images', 3), progressLogValidation, validate, async (req, res) => {
+router.post('/progress', authMiddleware, upload.array('images', 3), progressLogValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -140,26 +143,28 @@ router.post('/progress', authMiddleware, upload.array('images', 3), progressLogV
         await progressLog.save();
         res.status(201).json({ message: 'Progress logged', progressLog });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get all progress logs for the member
-router.get('/progress', authMiddleware, async (req, res) => {
+router.get('/progress', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
     try {
-        const progressLogs = await ProgressLog.find({ member: req.user.id }).sort({ date: -1 });
-        res.json(progressLogs);
+        const filter = { member: req.user.id };
+        const query = ProgressLog.find(filter).sort({ date: -1 });
+        const result = await paginate(ProgressLog, filter, query, req);
+        res.json(result);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Update a progress log
-router.put('/progress/:id', authMiddleware, upload.array('images', 3), progressIdValidation, progressLogValidation, validate, async (req, res) => {
+router.put('/progress/:id', authMiddleware, upload.array('images', 3), progressIdValidation, progressLogValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -210,12 +215,12 @@ router.put('/progress/:id', authMiddleware, upload.array('images', 3), progressI
         await progressLog.save();
         res.json({ message: 'Progress log updated', progressLog });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Delete a progress log
-router.delete('/progress/:id', authMiddleware, progressIdValidation, validate, async (req, res) => {
+router.delete('/progress/:id', authMiddleware, progressIdValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -241,13 +246,13 @@ router.delete('/progress/:id', authMiddleware, progressIdValidation, validate, a
         await progressLog.deleteOne();
         res.json({ message: 'Progress log deleted' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 
 // Leave gym (Member only)
-router.post('/leave-gym', authMiddleware, async (req, res) => {
+router.post('/leave-gym', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -284,12 +289,12 @@ router.post('/leave-gym', authMiddleware, async (req, res) => {
 
         res.json({ message: 'Left gym successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Request membership update (Member only)
-router.post('/membership-request', authMiddleware, membershipUpdateValidation, validate, async (req, res) => {
+router.post('/membership-request', authMiddleware, membershipUpdateValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -336,12 +341,12 @@ router.post('/membership-request', authMiddleware, membershipUpdateValidation, v
 
         res.status(201).json({ message: 'Membership request sent', membershipRequest });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
 // Get membership requests for a Member
-router.get('/membership-requests', authMiddleware, async (req, res) => {
+router.get('/membership-requests', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -352,13 +357,14 @@ router.get('/membership-requests', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Member not found or not in a gym' });
         }
 
-        const membershipRequests = await MembershipRequest.find({ member: req.user.id })
+        const filter = { member: req.user.id };
+        const query = MembershipRequest.find(filter)
             .populate('gym', 'gymName')
             .sort({ createdAt: -1 });
-
-        res.json(membershipRequests);
+        const result = await paginate(MembershipRequest, filter, query, req);
+        res.json(result);
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        next(error);
     }
 });
 
