@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 const eventLogSchema = new mongoose.Schema({
     event: { type: String, required: true }, // e.g., "Login", "Register"
@@ -22,7 +23,7 @@ eventLogSchema.post('save', async function (doc) {
             await mongoose.model('EventLog').deleteMany({ _id: { $in: idsToDelete } });
         }
     } catch (error) {
-        console.error('Error in event log cleanup:', error);
+        logger.error('Error in event log cleanup:', error);
     }
 });
 

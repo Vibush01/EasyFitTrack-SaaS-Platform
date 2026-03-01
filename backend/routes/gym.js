@@ -8,6 +8,7 @@ const authMiddleware = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { gymUpdateValidation, joinGymValidation, memberIdValidation, trainerIdValidation, requestActionValidation, membershipRequestActionValidation } = require('../validators/gym.validators');
 const paginate = require('../utils/paginate');
+const logger = require('../utils/logger');
 const Gym = require('../models/Gym');
 const Member = require('../models/Member');
 const Trainer = require('../models/Trainer');
@@ -48,7 +49,7 @@ router.get('/', async (req, res, next) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Error in GET /gyms:', error);
+        logger.error('Error in GET /gyms:', error);
         next(error);
     }
 });
@@ -120,7 +121,7 @@ router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (
 
         res.status(201).json({ message: 'Join request sent', joinRequest });
     } catch (error) {
-        console.error('Error in POST /join/:gymId:', error);
+        logger.error('Error in POST /join/:gymId:', error);
         next(error);
     }
 });
@@ -154,7 +155,7 @@ router.put('/update', authMiddleware, upload.array('photos', 5), gymUpdateValida
             try {
                 gym.membershipPlans = JSON.parse(membershipPlans);
             } catch (parseError) {
-                console.error('Error parsing membershipPlans:', parseError);
+                logger.error('Error parsing membershipPlans:', parseError);
                 return res.status(400).json({ message: 'Invalid membershipPlans format', error: parseError.message });
             }
         }
@@ -204,7 +205,7 @@ router.put('/update', authMiddleware, upload.array('photos', 5), gymUpdateValida
 
         res.json({ message: 'Gym updated', gym });
     } catch (error) {
-        console.error('Error in PUT /update:', error);
+        logger.error('Error in PUT /update:', error);
         next(error);
     }
 });
@@ -248,7 +249,7 @@ router.get('/requests', authMiddleware, async (req, res, next) => {
 
         res.json(pendingRequests);
     } catch (error) {
-        console.error('Error in GET /requests:', error);
+        logger.error('Error in GET /requests:', error);
         next(error);
     }
 });
@@ -262,13 +263,13 @@ router.get('/members', authMiddleware, async (req, res, next) => {
     try {
         // Validate req.user
         if (!req.user || !req.user.id) {
-            console.error('Invalid user in req:', req.user);
+            logger.error('Invalid user in req:', req.user);
             return res.status(401).json({ message: 'User authentication failed' });
         }
 
         // Validate gym ID
         if (!mongoose.Types.ObjectId.isValid(req.user.id)) {
-            console.error(`Invalid gym ID in req.user.id: ${req.user.id}`);
+            logger.error(`Invalid gym ID in req.user.id: ${req.user.id}`);
             return res.status(400).json({ message: 'Invalid gym ID' });
         }
 
@@ -276,7 +277,7 @@ router.get('/members', authMiddleware, async (req, res, next) => {
         if (req.user.role === 'gym') {
             gym = await Gym.findById(req.user.id);
             if (!gym) {
-                console.error(`Gym not found for ID ${req.user.id}`);
+                logger.error(`Gym not found for ID ${req.user.id}`);
                 return res.status(404).json({ message: 'Gym not found' });
             }
             gym = await Gym.findById(req.user.id).populate({
@@ -287,11 +288,11 @@ router.get('/members', authMiddleware, async (req, res, next) => {
         } else {
             const trainer = await Trainer.findById(req.user.id);
             if (!trainer) {
-                console.error(`Trainer not found for ID ${req.user.id}`);
+                logger.error(`Trainer not found for ID ${req.user.id}`);
                 return res.status(404).json({ message: 'Trainer not found' });
             }
             if (!trainer.gym) {
-                console.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
+                logger.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
                 return res.status(404).json({ message: 'Trainer not associated with a gym' });
             }
             gym = await Gym.findById(trainer.gym).populate({
@@ -302,14 +303,14 @@ router.get('/members', authMiddleware, async (req, res, next) => {
         }
 
         if (!gym) {
-            console.error('Gym not found after population');
+            logger.error('Gym not found after population');
             return res.status(404).json({ message: 'Gym not found' });
         }
 
         const members = gym.members || [];
         res.json(members);
     } catch (error) {
-        console.error('Error in GET /members:', error);
+        logger.error('Error in GET /members:', error);
         next(error);
     }
 });
@@ -323,13 +324,13 @@ router.get('/trainers', authMiddleware, async (req, res, next) => {
     try {
         // Validate req.user
         if (!req.user || !req.user.id) {
-            console.error('Invalid user in req:', req.user);
+            logger.error('Invalid user in req:', req.user);
             return res.status(401).json({ message: 'User authentication failed' });
         }
 
         // Validate gym ID
         if (!mongoose.Types.ObjectId.isValid(req.user.id)) {
-            console.error(`Invalid gym ID in req.user.id: ${req.user.id}`);
+            logger.error(`Invalid gym ID in req.user.id: ${req.user.id}`);
             return res.status(400).json({ message: 'Invalid gym ID' });
         }
 
@@ -340,7 +341,7 @@ router.get('/trainers', authMiddleware, async (req, res, next) => {
         });
 
         if (!gym) {
-            console.error(`Gym not found for ID ${req.user.id}`);
+            logger.error(`Gym not found for ID ${req.user.id}`);
             return res.status(404).json({ message: 'Gym not found' });
         }
 
@@ -349,7 +350,7 @@ router.get('/trainers', authMiddleware, async (req, res, next) => {
 
         res.json(trainers);
     } catch (error) {
-        console.error('Error in GET /trainers:', error);
+        logger.error('Error in GET /trainers:', error);
         next(error);
     }
 });
@@ -399,7 +400,7 @@ router.delete('/members/:memberId', authMiddleware, memberIdValidation, validate
 
         res.json({ message: 'Member removed successfully' });
     } catch (error) {
-        console.error('Error in DELETE /members/:memberId:', error);
+        logger.error('Error in DELETE /members/:memberId:', error);
         next(error);
     }
 });
@@ -441,7 +442,7 @@ router.delete('/trainers/:trainerId', authMiddleware, trainerIdValidation, valid
 
         res.json({ message: 'Trainer removed successfully' });
     } catch (error) {
-        console.error('Error in DELETE /trainers/:trainerId:', error);
+        logger.error('Error in DELETE /trainers/:trainerId:', error);
         next(error);
     }
 });
@@ -455,7 +456,7 @@ router.get('/members', authMiddleware, async (req, res, next) => {
     try {
         // Validate req.user
         if (!req.user || !req.user.id) {
-            console.error('Invalid user in req:', req.user);
+            logger.error('Invalid user in req:', req.user);
             return res.status(401).json({ message: 'User authentication failed' });
         }
 
@@ -463,7 +464,7 @@ router.get('/members', authMiddleware, async (req, res, next) => {
         if (req.user.role === 'gym') {
             gym = await Gym.findById(req.user.id);
             if (!gym) {
-                console.error(`Gym not found for ID ${req.user.id}`);
+                logger.error(`Gym not found for ID ${req.user.id}`);
                 return res.status(404).json({ message: 'Gym not found' });
             }
             gym = await Gym.findById(req.user.id).populate({
@@ -474,11 +475,11 @@ router.get('/members', authMiddleware, async (req, res, next) => {
         } else {
             const trainer = await Trainer.findById(req.user.id);
             if (!trainer) {
-                console.error(`Trainer not found for ID ${req.user.id}`);
+                logger.error(`Trainer not found for ID ${req.user.id}`);
                 return res.status(404).json({ message: 'Trainer not found' });
             }
             if (!trainer.gym) {
-                console.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
+                logger.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
                 return res.status(404).json({ message: 'Trainer not associated with a gym' });
             }
             gym = await Gym.findById(trainer.gym).populate({
@@ -489,14 +490,14 @@ router.get('/members', authMiddleware, async (req, res, next) => {
         }
 
         if (!gym) {
-            console.error('Gym not found after population');
+            logger.error('Gym not found after population');
             return res.status(404).json({ message: 'Gym not found' });
         }
 
         const members = gym.members || [];
         res.json(members);
     } catch (error) {
-        console.error('Error in GET /members:', error);
+        logger.error('Error in GET /members:', error);
         next(error);
     }
 });
@@ -510,7 +511,7 @@ router.get('/membership-requests', authMiddleware, async (req, res, next) => {
     try {
         // Validate req.user
         if (!req.user || !req.user.id) {
-            console.error('Invalid user in req:', req.user);
+            logger.error('Invalid user in req:', req.user);
             return res.status(401).json({ message: 'User authentication failed' });
         }
 
@@ -520,18 +521,18 @@ router.get('/membership-requests', authMiddleware, async (req, res, next) => {
         } else {
             const trainer = await Trainer.findById(req.user.id);
             if (!trainer) {
-                console.error(`Trainer not found for ID ${req.user.id}`);
+                logger.error(`Trainer not found for ID ${req.user.id}`);
                 return res.status(404).json({ message: 'Trainer not found' });
             }
             if (!trainer.gym) {
-                console.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
+                logger.error(`Trainer with ID ${req.user.id} is not associated with a gym`);
                 return res.status(404).json({ message: 'Trainer not associated with a gym' });
             }
             gym = await Gym.findById(trainer.gym);
         }
 
         if (!gym) {
-            console.error('Gym not found after population');
+            logger.error('Gym not found after population');
             return res.status(404).json({ message: 'Gym not found' });
         }
 
@@ -549,7 +550,7 @@ router.get('/membership-requests', authMiddleware, async (req, res, next) => {
 
         res.json(validRequests);
     } catch (error) {
-        console.error('Error in GET /membership-requests:', error);
+        logger.error('Error in GET /membership-requests:', error);
         next(error);
     }
 });
@@ -559,7 +560,7 @@ router.get('/:id', async (req, res, next) => {
     try {
         // Validate the ID parameter
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-            console.error(`Invalid gym ID: ${req.params.id}`);
+            logger.error(`Invalid gym ID: ${req.params.id}`);
             return res.status(400).json({ message: 'Invalid gym ID' });
         }
 
@@ -593,7 +594,7 @@ router.get('/:id', async (req, res, next) => {
 
         res.json(gym);
     } catch (error) {
-        console.error('Error in GET /:id:', error);
+        logger.error('Error in GET /:id:', error);
         next(error);
     }
 });
@@ -678,7 +679,7 @@ router.post('/requests/:requestId/accept', authMiddleware, requestActionValidati
 
         res.json({ message: 'Request accepted' });
     } catch (error) {
-        console.error('Error in POST /requests/:requestId/accept:', error);
+        logger.error('Error in POST /requests/:requestId/accept:', error);
         next(error);
     }
 });
@@ -728,7 +729,7 @@ router.post('/requests/:requestId/deny', authMiddleware, requestActionValidation
 
         res.json({ message: 'Request denied' });
     } catch (error) {
-        console.error('Error in POST /requests/:requestId/deny:', error);
+        logger.error('Error in POST /requests/:requestId/deny:', error);
         next(error);
     }
 });
@@ -818,7 +819,7 @@ router.put('/members/:memberId/membership', authMiddleware, memberIdValidation, 
 
         res.json({ message: 'Membership updated', member });
     } catch (error) {
-        console.error('Error in PUT /members/:memberId/membership:', error);
+        logger.error('Error in PUT /members/:memberId/membership:', error);
         next(error);
     }
 });
@@ -908,7 +909,7 @@ router.post('/membership-requests/:requestId/action', authMiddleware, membership
 
         res.json({ message: `Membership request ${action}d`, membershipRequest });
     } catch (error) {
-        console.error('Error in POST /membership-requests/:requestId/action:', error);
+        logger.error('Error in POST /membership-requests/:requestId/action:', error);
         next(error);
     }
 });

@@ -16,6 +16,7 @@ const contactRoutes = require('./routes/contact');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const initializeSocket = require('./socket');
+const logger = require('./utils/logger');
 
 
 
@@ -91,7 +92,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 if (process.env.NODE_ENV !== 'test') {
-    httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    httpServer.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
 }
 
 module.exports = app;
