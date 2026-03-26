@@ -1,4 +1,5 @@
 const ChatMessage = require('../models/ChatMessage');
+const logger = require('../utils/logger');
 
 /**
  * Initialize Socket.IO event handlers.
@@ -34,7 +35,7 @@ const initializeSocket = (io) => {
                 // Emit the message to both sender and receiver
                 io.to(gymId).emit('message', chatMessage);
             } catch (error) {
-                console.error('Error saving message:', error);
+                logger.error('Error saving message:', error);
             }
         });
 
@@ -50,7 +51,7 @@ const initializeSocket = (io) => {
                 // Emit event to notify the sender that their messages were read
                 io.to(gymId).emit('messagesRead', { senderId, receiverId });
             } catch (error) {
-                console.error('Error marking messages as read:', error);
+                logger.error('Error marking messages as read:', error);
             }
         });
 

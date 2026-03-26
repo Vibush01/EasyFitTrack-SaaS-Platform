@@ -50,7 +50,7 @@ const Announcements = () => {
                 const res = await axios.get(`${API_URL}/chat/announcements`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setAnnouncements(res.data);
+                setAnnouncements(res.data.data || res.data);
             } catch (err) {
                 console.error('Error fetching announcements:', err);
                 setError('Failed to fetch announcements');

@@ -8,6 +8,7 @@ const Admin = require('../models/Admin');
 const Gym = require('../models/Gym');
 const Trainer = require('../models/Trainer');
 const Member = require('../models/Member');
+const logger = require('../utils/logger');
 const EventLog = require('../models/EventLog');
 const authMiddleware = require('../middleware/auth');
 const validate = require('../middleware/validate');
@@ -143,7 +144,7 @@ router.post('/login', loginValidation, validate, async (req, res, next) => {
 
         res.json({ token, user: { id: user._id, email: user.email, role: user.role } });
     } catch (error) {
-        console.error('Login error:', error);
+        logger.error('Login error:', error);
         next(error);
     }
 });

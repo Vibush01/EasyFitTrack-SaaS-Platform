@@ -315,14 +315,19 @@ const UpdateGym = () => {
                                 <h4 className="text-[var(--text-primary)] font-medium mb-4">Add New Plan</h4>
                                 <div className="flex flex-col sm:flex-row gap-4">
                                     <div className="flex-1">
-                                        <input
-                                            type="text"
+                                        <select
                                             name="duration"
                                             value={newMembershipPlan.duration}
                                             onChange={handleMembershipChange}
-                                            className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Duration (e.g., 1 month)"
-                                        />
+                                            className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="">Select Duration</option>
+                                            <option value="1 week">1 week</option>
+                                            <option value="1 month">1 month</option>
+                                            <option value="3 months">3 months</option>
+                                            <option value="6 months">6 months</option>
+                                            <option value="1 year">1 year</option>
+                                        </select>
                                     </div>
                                     <div className="flex-1">
                                         <input

@@ -1,3 +1,5 @@
+const logger = require('../utils/logger');
+
 const errorHandler = (err, req, res, next) => {
     let statusCode = err.statusCode || 500;
     let message = err.message || 'Internal server error';
@@ -35,7 +37,7 @@ const errorHandler = (err, req, res, next) => {
 
     // Log error in development
     if (process.env.NODE_ENV !== 'production') {
-        console.error('Error:', err);
+        logger.error('Error:', err);
     }
 
     res.status(statusCode).json({

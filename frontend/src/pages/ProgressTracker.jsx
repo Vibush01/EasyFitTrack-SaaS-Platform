@@ -87,7 +87,7 @@ const ProgressTracker = () => {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 // Sort logs by date ascending for the chart
-                const sortedLogs = res.data.sort((a, b) => new Date(a.date) - new Date(b.date));
+                const sortedLogs = (res.data.data || res.data).sort((a, b) => new Date(a.date) - new Date(b.date));
                 setLogs(sortedLogs);
             } catch (err) {
                 setError('Failed to fetch progress logs');

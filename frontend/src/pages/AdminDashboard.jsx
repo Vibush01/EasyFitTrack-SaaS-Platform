@@ -31,7 +31,7 @@ const AdminDashboard = () => {
                 const res = await axios.get(`${API_URL}/admin/gyms`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setGyms(res.data);
+                setGyms(res.data.data || res.data);
             } catch (err) {
                 toast.error('Failed to fetch gyms' + err, { position: "top-right" });
             }
@@ -43,7 +43,7 @@ const AdminDashboard = () => {
                 const res = await axios.get(`${API_URL}/contact/messages`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setContactMessages(res.data);
+                setContactMessages(res.data.data || res.data);
             } catch (err) {
                 toast.error('Failed to fetch contact messages' + err, { position: "top-right" });
             }

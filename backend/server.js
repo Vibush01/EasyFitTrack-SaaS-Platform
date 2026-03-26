@@ -3,6 +3,8 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 const connectDB = require('./config/db');
 const configureCloudinary = require('./config/cloudinary');
 const errorHandler = require('./middleware/errorHandler');
@@ -16,8 +18,7 @@ const contactRoutes = require('./routes/contact');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const initializeSocket = require('./socket');
-
-
+const logger = require('./utils/logger');
 
 dotenv.config();
 const app = express();
@@ -29,13 +30,14 @@ const io = new Server(httpServer, {
     },
 });
 
-
 // Middleware: CORS must be first so all responses (including 429) include CORS headers
-app.use(cors({
-    origin: ['http://localhost:5173', 'https://easyfittrack.netlify.app'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+app.use(
+    cors({
+        origin: ['http://localhost:5173', 'https://easyfittrack.netlify.app'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+    }),
+);
 
 // Security: Helmet sets secure HTTP headers
 app.use(helmet());
@@ -71,6 +73,16 @@ app.set('socketio', io);
 // Initialize Socket.IO event handlers
 initializeSocket(io);
 
+// API Documentation (Swagger UI)
+app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+        customSiteTitle: 'EasyFitTrack API Docs',
+        customCss: '.swagger-ui .topbar { display: none }',
+    }),
+);
+
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/gym', gymRoutes);
@@ -91,7 +103,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 if (process.env.NODE_ENV !== 'test') {
-    httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    httpServer.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
 }
 
 module.exports = app;
