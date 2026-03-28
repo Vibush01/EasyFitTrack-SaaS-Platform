@@ -383,6 +383,103 @@ router.delete(
     },
 );
 
+// ─── Streak Calculation ───────────────────────────────────────────
+
+// Get workout streak stats (Member only)
+router.get('/streak', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        // Fetch all logs sorted by date descending
+        const logs = await WorkoutLog.find({ member: req.user.id })
+            .sort({ date: -1 })
+            .select('date')
+            .lean();
+
+        const totalWorkouts = logs.length;
+
+        // Build a Set of date strings for O(1) lookup
+        const loggedDates = new Set(
+            logs.map((log) => {
+                const d = new Date(log.date);
+                return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+            }),
+        );
+
+        // Helper: get date key for a Date object
+        const dateKey = (d) => `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+
+        // Today at midnight UTC
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        const todayLogged = loggedDates.has(dateKey(today));
+
+        // Calculate current streak: walk backwards from today (or yesterday if today not logged)
+        let currentStreak = 0;
+        const cursor = new Date(today);
+        if (!todayLogged) {
+            cursor.setUTCDate(cursor.getUTCDate() - 1);
+        }
+        while (loggedDates.has(dateKey(cursor))) {
+            currentStreak++;
+            cursor.setUTCDate(cursor.getUTCDate() - 1);
+        }
+
+        // Calculate longest streak: scan sorted dates
+        let longestStreak = 0;
+        if (logs.length > 0) {
+            // Sort dates ascending for sequential scan
+            const sortedDates = logs
+                .map((log) => {
+                    const d = new Date(log.date);
+                    d.setUTCHours(0, 0, 0, 0);
+                    return d.getTime();
+                })
+                .sort((a, b) => a - b);
+
+            // Remove duplicates (shouldn't exist due to unique index, but just in case)
+            const uniqueDates = [...new Set(sortedDates)];
+
+            let streak = 1;
+            longestStreak = 1;
+            const ONE_DAY = 86400000;
+
+            for (let i = 1; i < uniqueDates.length; i++) {
+                if (uniqueDates[i] - uniqueDates[i - 1] === ONE_DAY) {
+                    streak++;
+                    longestStreak = Math.max(longestStreak, streak);
+                } else {
+                    streak = 1;
+                }
+            }
+        }
+
+        // Last 7 days activity (for visual dots)
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setUTCDate(d.getUTCDate() - i);
+            last7Days.push({
+                date: d.toISOString().split('T')[0],
+                logged: loggedDates.has(dateKey(d)),
+            });
+        }
+
+        res.json({
+            currentStreak,
+            longestStreak,
+            totalWorkouts,
+            todayLogged,
+            last7Days,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Leave gym (Member only)
 router.post('/leave-gym', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'member') {
