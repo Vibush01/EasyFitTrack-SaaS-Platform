@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
+import StreakCard from '../components/StreakCard';
 
 const MemberDashboard = () => {
     const { user, userDetails } = useContext(AuthContext);
@@ -63,6 +64,9 @@ const MemberDashboard = () => {
                         {error}
                     </motion.p>
                 )}
+
+                {/* Streak Card — only when member is in a gym */}
+                {isInGym && <StreakCard />}
 
                 {/* Quick Links */}
                 <motion.div
