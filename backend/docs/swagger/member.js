@@ -392,6 +392,60 @@
 
 /**
  * @swagger
+ * /member/schedule:
+ *   put:
+ *     summary: Update workout schedule (Member only)
+ *     tags: [Member]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [workoutSchedule]
+ *             properties:
+ *               workoutSchedule:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                   minimum: 0
+ *                   maximum: 6
+ *                 description: Array of gym days 0=Sun through 6=Sat
+ *                 example: [1, 2, 3, 4, 5]
+ *     responses:
+ *       200:
+ *         description: Schedule updated
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Member not found
+ *   get:
+ *     summary: Get workout schedule (Member only)
+ *     tags: [Member]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current workout schedule
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 workoutSchedule:
+ *                   type: array
+ *                   items:
+ *                     type: integer
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Member not found
+ */
+
+/**
+ * @swagger
  * /member/leave-gym:
  *   post:
  *     summary: Leave current gym (Member only)

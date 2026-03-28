@@ -11,6 +11,7 @@ const {
     membershipUpdateValidation,
     workoutLogValidation,
     workoutLogIdValidation,
+    scheduleValidation,
 } = require('../validators/member.validators');
 const paginate = require('../utils/paginate');
 const Member = require('../models/Member');
@@ -383,7 +384,48 @@ router.delete(
     },
 );
 
-// ─── Streak Calculation ───────────────────────────────────────────
+// ─── Workout Schedule ─────────────────────────────────────────────
+
+// Update workout schedule (Member only)
+router.put('/schedule', authMiddleware, scheduleValidation, validate, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const member = await Member.findById(req.user.id);
+        if (!member) {
+            return res.status(404).json({ message: 'Member not found' });
+        }
+
+        member.workoutSchedule = req.body.workoutSchedule;
+        await member.save();
+
+        res.json({ message: 'Workout schedule updated', workoutSchedule: member.workoutSchedule });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get workout schedule (Member only)
+router.get('/schedule', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const member = await Member.findById(req.user.id).select('workoutSchedule').lean();
+        if (!member) {
+            return res.status(404).json({ message: 'Member not found' });
+        }
+
+        res.json({ workoutSchedule: member.workoutSchedule });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Streak Calculation (Schedule-Aware) ──────────────────────────
 
 // Get workout streak stats (Member only)
 router.get('/streak', authMiddleware, async (req, res, next) => {
@@ -392,6 +434,10 @@ router.get('/streak', authMiddleware, async (req, res, next) => {
     }
 
     try {
+        // Fetch member schedule
+        const member = await Member.findById(req.user.id).select('workoutSchedule').lean();
+        const schedule = new Set(member?.workoutSchedule ?? [0, 1, 2, 3, 4, 5, 6]);
+
         // Fetch all logs sorted by date descending
         const logs = await WorkoutLog.find({ member: req.user.id })
             .sort({ date: -1 })
@@ -411,53 +457,108 @@ router.get('/streak', authMiddleware, async (req, res, next) => {
         // Helper: get date key for a Date object
         const dateKey = (d) => `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 
+        // Helper: check if a date is a scheduled gym day
+        const isGymDay = (d) => schedule.has(d.getUTCDay());
+
         // Today at midnight UTC
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
         const todayLogged = loggedDates.has(dateKey(today));
+        const todayIsGymDay = isGymDay(today);
 
-        // Calculate current streak: walk backwards from today (or yesterday if today not logged)
+        // ── Current Streak (schedule-aware) ──
+        // Walk backwards. Rest days are skipped (streak stays).
+        // Gym days must be logged or streak breaks.
+        // Bonus: working out on a rest day also counts as +1.
         let currentStreak = 0;
         const cursor = new Date(today);
-        if (!todayLogged) {
+
+        // If today is a gym day and not yet logged, start from yesterday
+        if (todayIsGymDay && !todayLogged) {
             cursor.setUTCDate(cursor.getUTCDate() - 1);
         }
-        while (loggedDates.has(dateKey(cursor))) {
-            currentStreak++;
+        // If today is a rest day and not logged, start from yesterday
+        else if (!todayIsGymDay && !todayLogged) {
             cursor.setUTCDate(cursor.getUTCDate() - 1);
         }
 
-        // Calculate longest streak: scan sorted dates
+        // Walk backwards up to 365 days max
+        const maxLookback = 365;
+        let daysChecked = 0;
+
+        while (daysChecked < maxLookback) {
+            const logged = loggedDates.has(dateKey(cursor));
+            const gymDay = isGymDay(cursor);
+
+            if (gymDay) {
+                // Must be logged on a gym day
+                if (logged) {
+                    currentStreak++;
+                } else {
+                    break; // Missed a gym day → streak broken
+                }
+            } else {
+                // Rest day: if they logged anyway, bonus +1; otherwise just skip
+                if (logged) {
+                    currentStreak++;
+                }
+                // else: rest day not logged → streak continues, no penalty
+            }
+
+            cursor.setUTCDate(cursor.getUTCDate() - 1);
+            daysChecked++;
+        }
+
+        // ── Longest Streak (schedule-aware) ──
         let longestStreak = 0;
         if (logs.length > 0) {
-            // Sort dates ascending for sequential scan
-            const sortedDates = logs
-                .map((log) => {
-                    const d = new Date(log.date);
-                    d.setUTCHours(0, 0, 0, 0);
-                    return d.getTime();
-                })
-                .sort((a, b) => a - b);
-
-            // Remove duplicates (shouldn't exist due to unique index, but just in case)
-            const uniqueDates = [...new Set(sortedDates)];
+            // Build sorted unique timestamps ascending
+            const sortedTimestamps = [
+                ...new Set(
+                    logs.map((log) => {
+                        const d = new Date(log.date);
+                        d.setUTCHours(0, 0, 0, 0);
+                        return d.getTime();
+                    }),
+                ),
+            ].sort((a, b) => a - b);
 
             let streak = 1;
             longestStreak = 1;
             const ONE_DAY = 86400000;
 
-            for (let i = 1; i < uniqueDates.length; i++) {
-                if (uniqueDates[i] - uniqueDates[i - 1] === ONE_DAY) {
+            for (let i = 1; i < sortedTimestamps.length; i++) {
+                const prev = new Date(sortedTimestamps[i - 1]);
+                const curr = new Date(sortedTimestamps[i]);
+                const gap = sortedTimestamps[i] - sortedTimestamps[i - 1];
+
+                if (gap === ONE_DAY) {
+                    // Consecutive days
                     streak++;
-                    longestStreak = Math.max(longestStreak, streak);
                 } else {
-                    streak = 1;
+                    // Check if all days in the gap are rest days
+                    let allRestDays = true;
+                    const check = new Date(prev);
+                    check.setUTCDate(check.getUTCDate() + 1);
+                    while (check.getTime() < curr.getTime()) {
+                        if (isGymDay(check)) {
+                            allRestDays = false;
+                            break;
+                        }
+                        check.setUTCDate(check.getUTCDate() + 1);
+                    }
+                    if (allRestDays) {
+                        streak++;
+                    } else {
+                        streak = 1;
+                    }
                 }
+                longestStreak = Math.max(longestStreak, streak);
             }
         }
 
-        // Last 7 days activity (for visual dots)
+        // Last 7 days activity (for visual dots) — includes rest-day info
         const last7Days = [];
         for (let i = 6; i >= 0; i--) {
             const d = new Date(today);
@@ -465,6 +566,7 @@ router.get('/streak', authMiddleware, async (req, res, next) => {
             last7Days.push({
                 date: d.toISOString().split('T')[0],
                 logged: loggedDates.has(dateKey(d)),
+                isRestDay: !isGymDay(d),
             });
         }
 
@@ -473,6 +575,8 @@ router.get('/streak', authMiddleware, async (req, res, next) => {
             longestStreak,
             totalWorkouts,
             todayLogged,
+            todayIsGymDay,
+            workoutSchedule: member?.workoutSchedule ?? [0, 1, 2, 3, 4, 5, 6],
             last7Days,
         });
     } catch (error) {

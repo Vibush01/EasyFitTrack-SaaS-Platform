@@ -14,6 +14,15 @@ const memberSchema = new mongoose.Schema({
         startDate: { type: Date },
         endDate: { type: Date },
     },
+    // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    workoutSchedule: {
+        type: [Number],
+        default: [0, 1, 2, 3, 4, 5, 6],
+        validate: {
+            validator: (arr) => arr.every((v) => Number.isInteger(v) && v >= 0 && v <= 6),
+            message: 'workoutSchedule must contain integers 0-6',
+        },
+    },
 });
 
 memberSchema.pre('save', async function (next) {

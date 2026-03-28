@@ -83,6 +83,21 @@ const workoutLogValidation = [
 
 const workoutLogIdValidation = [param('id').isMongoId().withMessage('Invalid workout log ID')];
 
+const scheduleValidation = [
+    body('workoutSchedule')
+        .isArray({ min: 1, max: 7 })
+        .withMessage('workoutSchedule must be an array with 1–7 entries')
+        .custom((arr) => {
+            if (!arr.every((v) => Number.isInteger(v) && v >= 0 && v <= 6)) {
+                throw new Error('Each value must be an integer 0 (Sun) – 6 (Sat)');
+            }
+            if (new Set(arr).size !== arr.length) {
+                throw new Error('Duplicate days are not allowed');
+            }
+            return true;
+        }),
+];
+
 module.exports = {
     macroLogValidation,
     macroIdValidation,
@@ -91,4 +106,5 @@ module.exports = {
     membershipUpdateValidation,
     workoutLogValidation,
     workoutLogIdValidation,
+    scheduleValidation,
 };
