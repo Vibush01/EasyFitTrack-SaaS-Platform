@@ -219,6 +219,48 @@ const options = {
                         date: { type: 'string', format: 'date-time' },
                     },
                 },
+                WorkoutLog: {
+                    type: 'object',
+                    properties: {
+                        _id: { type: 'string' },
+                        member: { type: 'string' },
+                        date: { type: 'string', format: 'date' },
+                        note: { type: 'string', maxLength: 200 },
+                        createdAt: { type: 'string', format: 'date-time' },
+                    },
+                },
+                StreakResponse: {
+                    type: 'object',
+                    properties: {
+                        currentStreak: {
+                            type: 'integer',
+                            description: 'Current consecutive workout days',
+                        },
+                        longestStreak: {
+                            type: 'integer',
+                            description: 'Longest consecutive run in history',
+                        },
+                        totalWorkouts: {
+                            type: 'integer',
+                            description: 'Total logged workouts all-time',
+                        },
+                        todayLogged: {
+                            type: 'boolean',
+                            description: 'Whether today is already logged',
+                        },
+                        last7Days: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    date: { type: 'string', format: 'date' },
+                                    logged: { type: 'boolean' },
+                                },
+                            },
+                            description: 'Last 7 days activity tracker',
+                        },
+                    },
+                },
                 Announcement: {
                     type: 'object',
                     properties: {
