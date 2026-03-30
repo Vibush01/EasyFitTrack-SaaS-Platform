@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -442,7 +443,7 @@ const MyWorkouts = () => {
 
     // Edit modal state
     const [editingWorkout, setEditingWorkout] = useState(null);
-    const navigate = undefined; // not needed here
+    const navigate = useNavigate();
 
     // ── Fetch workouts ────────────────────────────────────────────────
     const fetchWorkouts = useCallback(async () => {
@@ -484,16 +485,16 @@ const MyWorkouts = () => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.post(
-                `${API_URL}/member/custom-workouts`,
+                `${API_URL}/member/workout-templates`,
                 { title, exercises },
                 { headers: { Authorization: `Bearer ${token}` } },
             );
             setWorkouts((prev) => [res.data, ...prev]);
             setTitle('');
             setExercises([{ ...DEFAULT_EXERCISE }]);
-            toast.success('💪 Workout created! Go crush it.', { position: 'top-right' });
+            toast.success('📋 Template saved! Use "Log Today" to start a session.', { position: 'top-right' });
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to create workout', { position: 'top-right' });
+            toast.error(err.response?.data?.message || 'Failed to save template', { position: 'top-right' });
         } finally {
             setSubmitting(false);
         }
@@ -534,14 +535,12 @@ const MyWorkouts = () => {
                 { sourceType: 'custom_template', sourceTemplateId: templateId },
                 { headers: { Authorization: `Bearer ${token}` } },
             );
-            toast.success('✅ Added to today\'s workout! Go to Today to log it.', {
-                position: 'top-right',
-                autoClose: 4000,
-            });
+            toast.success('✅ Added! Redirecting to Today\'s Workout…', { position: 'top-right', autoClose: 1500 });
+            setTimeout(() => navigate('/today'), 1200);
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to add to today', { position: 'top-right' });
         }
-    }, []);
+    }, [navigate]);
 
     // ── Delete a template ──────────────────────────────────────────────
     const handleDelete = useCallback(async (id) => {

@@ -395,10 +395,11 @@ const TodayWorkout = () => {
 
     const todayStr = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
 
-    // Fetch today's logs
+    // Fetch today's logs — runs on every mount so navigation away + back reloads data
     useEffect(() => {
         if (user?.role !== 'member') return;
-        const fetch = async () => {
+        setLoading(true);
+        const fetchToday = async () => {
             try {
                 const token = localStorage.getItem('token');
                 const d = new Date().toISOString().split('T')[0];
@@ -407,8 +408,9 @@ const TodayWorkout = () => {
             } catch { toast.error('Failed to load today\'s workouts', { position: 'top-right' }); }
             finally { setLoading(false); }
         };
-        fetch();
-    }, [user]);
+        fetchToday();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Load history when tab switches
     const loadHistory = useCallback(async () => {
