@@ -23,6 +23,7 @@ const ProgressLog = require('../models/ProgressLog');
 const WorkoutLog = require('../models/WorkoutLog');
 const WorkoutSession = require('../models/WorkoutSession');
 const WorkoutPlan = require('../models/WorkoutPlan');
+const CustomWorkout = require('../models/CustomWorkout');
 const cloudinary = require('cloudinary').v2;
 
 // Configure Multer for file uploads
@@ -815,6 +816,130 @@ router.put('/workout-sessions/:id', authMiddleware, async (req, res, next) => {
 
         await session.save();
         res.json({ session, streakLogged: allDone });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Custom (Self-Directed) Workouts ─────────────────────────
+
+// GET: fetch all custom workouts for the member (optionally filter by ?date=YYYY-MM-DD)
+router.get('/custom-workouts', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const filter = { member: req.user.id };
+
+        if (req.query.date) {
+            const d = new Date(req.query.date);
+            d.setUTCHours(0, 0, 0, 0);
+            const dEnd = new Date(d);
+            dEnd.setUTCDate(dEnd.getUTCDate() + 1);
+            filter.date = { $gte: d, $lt: dEnd };
+        }
+
+        const workouts = await CustomWorkout.find(filter).sort({ createdAt: -1 }).lean();
+        res.json(workouts);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// POST: create a new custom workout for today
+router.post('/custom-workouts', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const { title, exercises } = req.body;
+
+    if (!title || !title.trim()) {
+        return res.status(400).json({ message: 'Title is required' });
+    }
+    if (!Array.isArray(exercises) || exercises.length === 0) {
+        return res.status(400).json({ message: 'At least one exercise is required' });
+    }
+
+    try {
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        const workout = await CustomWorkout.create({
+            member: req.user.id,
+            title: title.trim(),
+            date: today,
+            exercises,
+            completedExercises: [],
+            status: 'in_progress',
+        });
+
+        res.status(201).json(workout);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// PUT: update completedExercises; auto-complete + auto-streak when all checked
+router.put('/custom-workouts/:id', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const { completedExercises } = req.body;
+    if (!Array.isArray(completedExercises)) {
+        return res.status(400).json({ message: 'completedExercises must be an array of indices' });
+    }
+
+    try {
+        const workout = await CustomWorkout.findById(req.params.id);
+        if (!workout) return res.status(404).json({ message: 'Custom workout not found' });
+        if (workout.member.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        workout.completedExercises = completedExercises;
+
+        const allDone = completedExercises.length >= workout.exercises.length;
+        if (allDone && workout.status !== 'completed') {
+            workout.status = 'completed';
+
+            // Auto-log workout for the streak (idempotent)
+            const logDate = new Date(workout.date);
+            logDate.setUTCHours(0, 0, 0, 0);
+            const existing = await WorkoutLog.findOne({ member: req.user.id, date: logDate });
+            if (!existing) {
+                await WorkoutLog.create({
+                    member: req.user.id,
+                    date: logDate,
+                    note: `Custom workout: ${workout.title}`,
+                });
+            }
+        }
+
+        await workout.save();
+        res.json({ workout, streakLogged: allDone });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// DELETE: remove a custom workout
+router.delete('/custom-workouts/:id', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const workout = await CustomWorkout.findById(req.params.id);
+        if (!workout) return res.status(404).json({ message: 'Custom workout not found' });
+        if (workout.member.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        await workout.deleteOne();
+        res.json({ message: 'Custom workout deleted' });
     } catch (error) {
         next(error);
     }
