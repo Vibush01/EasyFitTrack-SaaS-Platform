@@ -222,6 +222,9 @@ const Navbar = () => {
                                     <Link to="/progress-tracker" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
                                         Progress Tracker
                                     </Link>
+                                    <Link to="/my-workouts" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                        My Custom Workouts
+                                    </Link>
                                 </Dropdown>
                             )}
 
@@ -328,6 +331,7 @@ const Navbar = () => {
                                         <div className="px-4 py-2 text-blue-200 text-sm font-semibold uppercase tracking-wider">Tracker</div>
                                         <Link to="/macro-calculator" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Macro Calculator</Link>
                                         <Link to="/progress-tracker" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Progress Tracker</Link>
+                                        <Link to="/my-workouts" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>My Custom Workouts</Link>
                                     </>
                                 )}
 
