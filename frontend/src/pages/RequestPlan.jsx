@@ -1,8 +1,9 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
+import WorkoutChecklist from '../components/WorkoutChecklist';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -10,7 +11,9 @@ const RequestPlan = () => {
     const { user } = useContext(AuthContext);
     const [trainers, setTrainers] = useState([]);
     const [requests, setRequests] = useState([]);
-    const [plans, setPlans] = useState([]);
+    const [workoutPlans, setWorkoutPlans] = useState([]);  // raw workout plan docs
+    const [dietPlans, setDietPlans] = useState([]);        // raw diet plan docs
+    const [plans, setPlans] = useState([]);                // combined display list
     const [selectedTrainer, setSelectedTrainer] = useState('');
     const [requestType, setRequestType] = useState('workout');
 
@@ -51,16 +54,23 @@ const RequestPlan = () => {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
+                const rawWorkout = workoutPlansRes.data.data || workoutPlansRes.data;
+                const rawDiet = dietPlansRes.data.data || dietPlansRes.data;
+
+                setWorkoutPlans(rawWorkout);
+                setDietPlans(rawDiet);
+
                 const combinedPlans = [
-                    ...(workoutPlansRes.data.data || workoutPlansRes.data).map((plan) => ({
+                    ...rawWorkout.map((plan) => ({
+                        _id: plan._id,
                         type: 'Workout Plan',
                         title: plan.title,
-                        description: plan.exercises.map((ex) => `${ex.name}: ${ex.sets} sets, ${ex.reps} reps, Rest: ${ex.rest || 'N/A'}`).join('; '),
+                        raw: plan,  // keep full object for checklist
                         trainer: plan.trainer,
                         gym: plan.gym,
                         receivedOn: plan.createdAt,
                     })),
-                    ...(dietPlansRes.data.data || dietPlansRes.data).map((plan) => ({
+                    ...rawDiet.map((plan) => ({
                         type: 'Diet Plan',
                         title: plan.title,
                         description: plan.meals.map((meal) => `${meal.name}: ${meal.calories} kcal, Protein: ${meal.protein}g, Carbs: ${meal.carbs}g, Fats: ${meal.fats}g, Time: ${meal.time || 'N/A'}`).join('; '),
@@ -82,6 +92,12 @@ const RequestPlan = () => {
             fetchPlans();
         }
     }, [user]);
+
+    // Callback passed to WorkoutChecklist so it can trigger a re-fetch after session update
+    const refreshPlans = useCallback(() => {
+        // Re-trigger plan fetch by toggling a counter (simple approach)
+        setPlans((prev) => [...prev]);
+    }, []);
 
     // Debug logs
     console.log('Requests:', requests);
@@ -296,8 +312,15 @@ const RequestPlan = () => {
                                                     <p className="text-[var(--text-secondary)] text-xs">{new Date(plan.receivedOn).toLocaleDateString()}</p>
                                                 </div>
                                             </div>
-                                            <div className="bg-[var(--bg-primary)]/50 p-4 rounded-lg text-[var(--text-secondary)] text-sm leading-relaxed">
-                                                {plan.description}
+                                        <div className="bg-[var(--bg-primary)]/50 p-4 rounded-lg text-[var(--text-secondary)] text-sm leading-relaxed">
+                                                {plan.type === 'Workout Plan' && plan.raw ? (
+                                                    <WorkoutChecklist
+                                                        plan={plan.raw}
+                                                        onSessionUpdate={refreshPlans}
+                                                    />
+                                                ) : (
+                                                    plan.description
+                                                )}
                                             </div>
                                         </motion.div>
                                     ))}
