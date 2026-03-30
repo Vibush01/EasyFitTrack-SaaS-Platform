@@ -295,8 +295,12 @@ const RequestPlan = () => {
                                 <div className="space-y-4">
                                     {plans.map((plan, index) => (
                                         <motion.div
-                                            key={index}
-                                            className="bg-[var(--bg-secondary)]/50 p-5 rounded-xl border border-[var(--border-color)] hover:border-purple-500/50 transition-all duration-300"
+                                            key={plan._id || index}
+                                            className={`bg-[var(--bg-secondary)]/50 p-5 rounded-xl border transition-all duration-300 ${
+                                                plan.type === 'Workout Plan'
+                                                    ? 'border-[var(--border-color)] hover:border-blue-500/40'
+                                                    : 'border-[var(--border-color)] hover:border-green-500/40'
+                                            }`}
                                             initial="hidden"
                                             whileInView="visible"
                                             viewport={{ once: true }}
@@ -305,7 +309,20 @@ const RequestPlan = () => {
                                             <div className="flex justify-between items-start mb-3">
                                                 <div>
                                                     <h3 className="text-[var(--text-primary)] font-bold text-lg">{plan.title}</h3>
-                                                    <p className="text-[var(--text-secondary)] text-sm">{plan.type}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                                                            plan.type === 'Workout Plan'
+                                                                ? 'bg-blue-500/10 text-blue-400'
+                                                                : 'bg-green-500/10 text-green-400'
+                                                        }`}>
+                                                            {plan.type}
+                                                        </span>
+                                                        {plan.type === 'Workout Plan' && plan.raw?.exercises?.length > 0 && (
+                                                            <span className="text-xs text-[var(--text-secondary)]">
+                                                                {plan.raw.exercises.length} exercise{plan.raw.exercises.length !== 1 ? 's' : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-[var(--text-secondary)] text-xs">Trainer: {plan.trainer.name}</p>
