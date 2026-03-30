@@ -21,6 +21,8 @@ const MembershipRequest = require('../models/MembershipRequest');
 const MacroLog = require('../models/MacroLog');
 const ProgressLog = require('../models/ProgressLog');
 const WorkoutLog = require('../models/WorkoutLog');
+const WorkoutSession = require('../models/WorkoutSession');
+const WorkoutPlan = require('../models/WorkoutPlan');
 const cloudinary = require('cloudinary').v2;
 
 // Configure Multer for file uploads
@@ -704,6 +706,115 @@ router.get('/membership-requests', authMiddleware, async (req, res, next) => {
             .sort({ createdAt: -1 });
         const result = await paginate(MembershipRequest, filter, query, req);
         res.json(result);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Workout Sessions (Interactive Checklist) ────────────────────
+
+// GET today's session(s) for the member, optionally filtered by planId
+router.get('/workout-sessions', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const filter = { member: req.user.id };
+        if (req.query.planId) filter.workoutPlan = req.query.planId;
+
+        const sessions = await WorkoutSession.find(filter).sort({ date: -1 }).lean();
+        res.json(sessions);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// POST: create or return today's session for a given workout plan
+router.post('/workout-sessions', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const { planId } = req.body;
+    if (!planId) return res.status(400).json({ message: 'planId is required' });
+
+    try {
+        // Verify the plan belongs to this member
+        const plan = await WorkoutPlan.findById(planId);
+        if (!plan || plan.member.toString() !== req.user.id) {
+            return res.status(404).json({ message: 'Workout plan not found' });
+        }
+
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        // Upsert: return existing session if one already exists for today
+        let session = await WorkoutSession.findOne({
+            member: req.user.id,
+            workoutPlan: planId,
+            date: today,
+        });
+
+        if (!session) {
+            session = await WorkoutSession.create({
+                member: req.user.id,
+                workoutPlan: planId,
+                date: today,
+                completedExercises: [],
+                status: 'in_progress',
+            });
+        }
+
+        res.status(201).json(session);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// PUT: update completedExercises; auto-complete + auto-log streak when all done
+router.put('/workout-sessions/:id', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const { completedExercises } = req.body;
+    if (!Array.isArray(completedExercises)) {
+        return res.status(400).json({ message: 'completedExercises must be an array of indices' });
+    }
+
+    try {
+        const session = await WorkoutSession.findById(req.params.id);
+        if (!session) return res.status(404).json({ message: 'Session not found' });
+        if (session.member.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        // Fetch the plan to know total exercises count
+        const plan = await WorkoutPlan.findById(session.workoutPlan);
+        if (!plan) return res.status(404).json({ message: 'Workout plan not found' });
+
+        session.completedExercises = completedExercises;
+
+        const allDone = completedExercises.length >= plan.exercises.length;
+        if (allDone && session.status !== 'completed') {
+            session.status = 'completed';
+
+            // Auto-log workout for the streak (idempotent — ignore duplicate)
+            const logDate = new Date(session.date);
+            logDate.setUTCHours(0, 0, 0, 0);
+            const existing = await WorkoutLog.findOne({ member: req.user.id, date: logDate });
+            if (!existing) {
+                await WorkoutLog.create({
+                    member: req.user.id,
+                    date: logDate,
+                    note: `Completed: ${plan.title}`,
+                });
+            }
+        }
+
+        await session.save();
+        res.json({ session, streakLogged: allDone });
     } catch (error) {
         next(error);
     }
