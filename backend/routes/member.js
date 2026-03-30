@@ -24,6 +24,7 @@ const WorkoutLog = require('../models/WorkoutLog');
 const WorkoutSession = require('../models/WorkoutSession');
 const WorkoutPlan = require('../models/WorkoutPlan');
 const CustomWorkout = require('../models/CustomWorkout');
+const DailyLog = require('../models/DailyLog');
 const cloudinary = require('cloudinary').v2;
 
 // Configure Multer for file uploads
@@ -969,6 +970,227 @@ router.delete('/custom-workouts/:id', authMiddleware, async (req, res, next) => 
         res.json({ message: 'Custom workout deleted' });
     } catch (error) {
         next(error);
+    }
+});
+
+// ─── Workout Templates (reusable custom plans) ───────────────────
+
+router.get('/workout-templates', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    try {
+        const templates = await CustomWorkout.find({ member: req.user.id, isTemplate: true })
+            .sort({ createdAt: -1 })
+            .lean();
+        res.json(templates);
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.post('/workout-templates', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    const { title, exercises } = req.body;
+    if (!title?.trim()) return res.status(400).json({ message: 'Title is required' });
+    if (!Array.isArray(exercises) || exercises.length === 0)
+        return res.status(400).json({ message: 'At least one exercise is required' });
+    try {
+        const template = await CustomWorkout.create({
+            member: req.user.id,
+            title: title.trim(),
+            isTemplate: true,
+            date: null,
+            exercises,
+            completedExercises: [],
+            status: 'in_progress',
+        });
+        res.status(201).json(template);
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.put('/workout-templates/:id', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    const { title, exercises } = req.body;
+    try {
+        const template = await CustomWorkout.findById(req.params.id);
+        if (!template || !template.isTemplate)
+            return res.status(404).json({ message: 'Template not found' });
+        if (template.member.toString() !== req.user.id)
+            return res.status(403).json({ message: 'Not authorized' });
+        if (title) template.title = title.trim();
+        if (exercises) template.exercises = exercises;
+        await template.save();
+        res.json(template);
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.delete('/workout-templates/:id', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    try {
+        const template = await CustomWorkout.findById(req.params.id);
+        if (!template || !template.isTemplate)
+            return res.status(404).json({ message: 'Template not found' });
+        if (template.member.toString() !== req.user.id)
+            return res.status(403).json({ message: 'Not authorized' });
+        await template.deleteOne();
+        res.json({ message: 'Template deleted' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ─── Daily Logs (Today's Workout Hub) ───────────────────────
+
+// GET history of past completed logs (must be before /:id route)
+router.get('/daily-logs/history', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    try {
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        const page = parseInt(req.query.page) || 1;
+        const limit = 25;
+        const logs = await DailyLog.find({ member: req.user.id, date: { $lt: today } })
+            .sort({ date: -1, createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
+        res.json(logs);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// GET today's (or any date's) logs
+router.get('/daily-logs', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    try {
+        const dateStr = req.query.date || new Date().toISOString().split('T')[0];
+        const d = new Date(dateStr);
+        d.setUTCHours(0, 0, 0, 0);
+        const dEnd = new Date(d);
+        dEnd.setUTCDate(dEnd.getUTCDate() + 1);
+        const logs = await DailyLog.find({ member: req.user.id, date: { $gte: d, $lt: dEnd } })
+            .sort({ createdAt: 1 })
+            .lean();
+        res.json(logs);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// POST: opt a plan/template into today's workout
+router.post('/daily-logs', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    const { sourceType, sourcePlanId, sourceTemplateId } = req.body;
+    if (!['trainer_plan', 'custom_template'].includes(sourceType)) {
+        return res.status(400).json({ message: 'Invalid sourceType' });
+    }
+    try {
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        let title, exercises, dupFilter;
+
+        if (sourceType === 'trainer_plan') {
+            if (!sourcePlanId) return res.status(400).json({ message: 'sourcePlanId required' });
+            const plan = await WorkoutPlan.findById(sourcePlanId);
+            if (!plan || plan.member.toString() !== req.user.id)
+                return res.status(404).json({ message: 'Plan not found' });
+            title = plan.title;
+            exercises = plan.exercises.map((e) => ({
+                name: e.name,
+                sets: e.sets,
+                reps: e.reps,
+                rest: e.rest || '',
+            }));
+            dupFilter = { member: req.user.id, sourcePlanId, date: today };
+        } else {
+            if (!sourceTemplateId)
+                return res.status(400).json({ message: 'sourceTemplateId required' });
+            const tmpl = await CustomWorkout.findById(sourceTemplateId);
+            if (!tmpl || !tmpl.isTemplate || tmpl.member.toString() !== req.user.id)
+                return res.status(404).json({ message: 'Template not found' });
+            title = tmpl.title;
+            exercises = tmpl.exercises.map((e) => ({
+                name: e.name,
+                sets: e.sets,
+                reps: e.reps,
+                rest: e.rest || '',
+            }));
+            dupFilter = { member: req.user.id, sourceTemplateId, date: today };
+        }
+
+        // Idempotent: return existing log if already opted today
+        const existing = await DailyLog.findOne(dupFilter);
+        if (existing) return res.status(200).json(existing);
+
+        const log = await DailyLog.create({
+            member: req.user.id,
+            date: today,
+            sourceType,
+            sourcePlanId: sourcePlanId || null,
+            sourceTemplateId: sourceTemplateId || null,
+            title,
+            exercises,
+            completedExercises: [],
+            status: 'in_progress',
+        });
+        res.status(201).json(log);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// PUT: update completedExercises; auto-complete + auto-streak when all done
+router.put('/daily-logs/:id', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    const { completedExercises } = req.body;
+    if (!Array.isArray(completedExercises))
+        return res.status(400).json({ message: 'completedExercises must be an array' });
+    try {
+        const log = await DailyLog.findById(req.params.id);
+        if (!log) return res.status(404).json({ message: 'Log not found' });
+        if (log.member.toString() !== req.user.id)
+            return res.status(403).json({ message: 'Not authorized' });
+
+        log.completedExercises = completedExercises;
+        const allDone = completedExercises.length >= log.exercises.length;
+        if (allDone && log.status !== 'completed') {
+            log.status = 'completed';
+            const logDate = new Date(log.date);
+            logDate.setUTCHours(0, 0, 0, 0);
+            const existing = await WorkoutLog.findOne({ member: req.user.id, date: logDate });
+            if (!existing) {
+                await WorkoutLog.create({
+                    member: req.user.id,
+                    date: logDate,
+                    note: `Completed: ${log.title}`,
+                });
+            }
+        }
+        await log.save();
+        res.json({ log, streakLogged: allDone });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// DELETE: remove an in-progress log from today
+router.delete('/daily-logs/:id', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') return res.status(403).json({ message: 'Access denied' });
+    try {
+        const log = await DailyLog.findById(req.params.id);
+        if (!log) return res.status(404).json({ message: 'Log not found' });
+        if (log.member.toString() !== req.user.id)
+            return res.status(403).json({ message: 'Not authorized' });
+        if (log.status === 'completed')
+            return res.status(400).json({ message: 'Cannot remove a completed workout' });
+        await log.deleteOne();
+        res.json({ message: 'Removed from today' });
+    } catch (err) {
+        next(err);
     }
 });
 
