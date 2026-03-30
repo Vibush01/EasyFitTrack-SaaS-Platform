@@ -21,6 +21,7 @@ import WorkoutPlans from './pages/WorkoutPlans';
 import MemberDashboard from './pages/MemberDashboard';
 import RequestPlan from './pages/RequestPlan';
 import MyWorkouts from './pages/MyWorkouts';
+import TodayWorkout from './pages/TodayWorkout';
 import ManageSchedule from './pages/ManageSchedule';
 import ViewBookings from './pages/ViewBookings';
 import BookSession from './pages/BookSession';
@@ -95,6 +96,11 @@ function App() {
                             <Route path="/my-workouts" element={
                                 <ProtectedRoute>
                                     <MyWorkouts />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/today" element={
+                                <ProtectedRoute>
+                                    <TodayWorkout />
                                 </ProtectedRoute>
                             } />
                             <Route path="/manage-schedule" element={
