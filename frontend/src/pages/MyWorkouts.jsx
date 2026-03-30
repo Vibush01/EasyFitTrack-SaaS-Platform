@@ -442,23 +442,21 @@ const MyWorkouts = () => {
 
     // Edit modal state
     const [editingWorkout, setEditingWorkout] = useState(null);
+    const navigate = undefined; // not needed here
 
     // ── Fetch workouts ────────────────────────────────────────────────
     const fetchWorkouts = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
-            const today = new Date().toISOString().split('T')[0];
-            const url = showTodayOnly
-                ? `${API_URL}/member/custom-workouts?date=${today}`
-                : `${API_URL}/member/custom-workouts`;
-            const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+            // New system: fetch reusable templates only
+            const res = await axios.get(`${API_URL}/member/workout-templates`, { headers: { Authorization: `Bearer ${token}` } });
             setWorkouts(res.data);
         } catch {
-            toast.error('Failed to load workouts', { position: 'top-right' });
+            toast.error('Failed to load templates', { position: 'top-right' });
         } finally {
             setLoading(false);
         }
-    }, [showTodayOnly]);
+    }, []);
 
     useEffect(() => {
         if (user?.role === 'member') fetchWorkouts();
@@ -513,31 +511,49 @@ const MyWorkouts = () => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.put(
-                `${API_URL}/member/custom-workouts/${id}`,
+                `${API_URL}/member/workout-templates/${id}`,
                 { title: newTitle, exercises: newExercises },
                 { headers: { Authorization: `Bearer ${token}` } },
             );
             setWorkouts((prev) =>
-                prev.map((w) => (w._id === id ? res.data.workout : w)),
+                prev.map((w) => (w._id === id ? res.data : w)),
             );
             setEditingWorkout(null);
-            toast.success('✏️ Workout updated!', { position: 'top-right' });
+            toast.success('✏️ Template updated!', { position: 'top-right' });
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to update workout', { position: 'top-right' });
+            toast.error(err.response?.data?.message || 'Failed to update template', { position: 'top-right' });
         }
     }, []);
 
-    // ── Delete a workout ──────────────────────────────────────────────
+    // ── Log Today handler ─────────────────────────────────────────────
+    const handleLogToday = useCallback(async (templateId) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${API_URL}/member/daily-logs`,
+                { sourceType: 'custom_template', sourceTemplateId: templateId },
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            toast.success('✅ Added to today\'s workout! Go to Today to log it.', {
+                position: 'top-right',
+                autoClose: 4000,
+            });
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to add to today', { position: 'top-right' });
+        }
+    }, []);
+
+    // ── Delete a template ──────────────────────────────────────────────
     const handleDelete = useCallback(async (id) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`${API_URL}/member/custom-workouts/${id}`, {
+            await axios.delete(`${API_URL}/member/workout-templates/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setWorkouts((prev) => prev.filter((w) => w._id !== id));
-            toast.success('Workout deleted', { position: 'top-right' });
+            toast.success('Template deleted', { position: 'top-right' });
         } catch {
-            toast.error('Failed to delete workout', { position: 'top-right' });
+            toast.error('Failed to delete template', { position: 'top-right' });
         }
     }, []);
 
@@ -568,10 +584,10 @@ const MyWorkouts = () => {
                     className="mb-10 text-center"
                 >
                     <h1 className="text-3xl sm:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-                        My Custom Workouts
+                        My Workout Templates
                     </h1>
                     <p className="text-[var(--text-secondary)] mt-2">
-                        Design your own routine, check off exercises, and earn your streak — no trainer needed.
+                        Build reusable workout plans. Hit <strong className="text-indigo-400">Log Today</strong> on any template to add it to <a href="/today" className="text-indigo-400 underline">Today's Workout</a>.
                     </p>
                 </motion.div>
 
@@ -585,7 +601,7 @@ const MyWorkouts = () => {
                     >
                         <h2 className="text-xl font-bold text-[var(--text-primary)] flex items-center mb-6">
                             <span className="bg-purple-600 w-1.5 h-7 rounded-full mr-3" />
-                            Create Workout
+                            Create Template
                         </h2>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -682,7 +698,7 @@ const MyWorkouts = () => {
                                 whileTap={{ scale: 0.98 }}
                                 className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-600/20 hover:shadow-purple-600/40 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                {submitting ? 'Creating…' : '🏋️ Create & Start'}
+                                {submitting ? 'Saving…' : '📋 Save Template'}
                             </motion.button>
                         </form>
                     </motion.div>
@@ -696,15 +712,10 @@ const MyWorkouts = () => {
                     >
                         {/* Filter toggle */}
                         <div className="flex items-center justify-between bg-[var(--bg-card)]/80 backdrop-blur-md px-5 py-3 rounded-2xl border border-[var(--border-color)]">
-                            <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                                {showTodayOnly ? "Today's Workouts" : 'All My Workouts'}
-                            </h2>
-                            <button
-                                onClick={() => { setShowTodayOnly((v) => !v); setLoading(true); }}
-                                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] text-purple-400 hover:bg-purple-500/10 border border-purple-500/20 transition-all"
-                            >
-                                {showTodayOnly ? 'View All History' : 'View Today'}
-                            </button>
+                            <h2 className="text-lg font-bold text-[var(--text-primary)]">My Templates</h2>
+                            <span className="text-xs text-[var(--text-secondary)] px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-purple-500/20">
+                                {workouts.length} template{workouts.length !== 1 ? 's' : ''}
+                            </span>
                         </div>
 
                         {loading ? (
@@ -720,12 +731,10 @@ const MyWorkouts = () => {
                                 animate={{ opacity: 1 }}
                                 className="bg-[var(--bg-card)]/80 backdrop-blur-md p-14 rounded-3xl border border-[var(--border-color)] border-dashed text-center"
                             >
-                                <div className="text-5xl mb-4">🏋️</div>
-                                <p className="text-[var(--text-primary)] font-bold text-lg">No workouts yet</p>
+                                <div className="text-5xl mb-4">📋</div>
+                                <p className="text-[var(--text-primary)] font-bold text-lg">No templates yet</p>
                                 <p className="text-[var(--text-secondary)] text-sm mt-2">
-                                    {showTodayOnly
-                                        ? "Create a workout above to start today's session!"
-                                        : 'Your custom workout history is empty.'}
+                                    Create your first workout template using the form on the left.
                                 </p>
                             </motion.div>
                         ) : (
@@ -768,13 +777,33 @@ const MyWorkouts = () => {
                                             </span>
                                         </div>
 
-                                        {/* Inline checklist */}
-                                        <CustomChecklist
-                                            workout={workout}
-                                            onUpdate={handleUpdate}
-                                            onDelete={handleDelete}
-                                            onEdit={setEditingWorkout}
-                                        />
+                                        {/* Template action row */}
+                                        <div className="mt-3 space-y-2">
+                                            <p className="text-xs text-[var(--text-secondary)]">
+                                                {workout.exercises.slice(0, 3).map((e, i) => (
+                                                    <span key={i}>{e.name}{i < Math.min(2, workout.exercises.length - 1) ? ', ' : ''}</span>
+                                                ))}
+                                                {workout.exercises.length > 3 && ` +${workout.exercises.length - 3} more`}
+                                            </p>
+                                            <div className="flex items-center gap-2 pt-1">
+                                                <motion.button
+                                                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                                                    onClick={() => handleLogToday(workout._id)}
+                                                    className="flex-1 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all flex items-center justify-center gap-1.5"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                                                    </svg>
+                                                    Log Today
+                                                </motion.button>
+                                                <button onClick={() => setEditingWorkout(workout)}
+                                                    className="px-3 py-2 rounded-xl border border-amber-500/25 text-amber-400 hover:bg-amber-500/10 text-xs font-semibold transition-all"
+                                                >✏️</button>
+                                                <button onClick={() => handleDelete(workout._id)}
+                                                    className="px-3 py-2 rounded-xl border border-red-500/20 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 text-xs font-semibold transition-all"
+                                                >🗑️</button>
+                                            </div>
+                                        </div>
                                     </motion.div>
                                 ))}
                             </AnimatePresence>
