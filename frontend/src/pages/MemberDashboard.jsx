@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
+import StreakCard from '../components/StreakCard';
 
 const MemberDashboard = () => {
     const { user, userDetails } = useContext(AuthContext);
@@ -64,6 +65,9 @@ const MemberDashboard = () => {
                     </motion.p>
                 )}
 
+                {/* Streak Card — only when member is in a gym */}
+                {isInGym && <StreakCard />}
+
                 {/* Quick Links */}
                 <motion.div
                     initial="hidden"
@@ -115,7 +119,52 @@ const MemberDashboard = () => {
                                 </Link>
                             </motion.div>
                         )}
+
+                        {/* Today's Workout — always visible, primary CTA */}
+                        <motion.div whileHover="hover" variants={buttonHover} className="sm:col-span-2">
+                            <Link
+                                to="/today"
+                                id="today-workout-link"
+                                className="flex items-center gap-4 bg-gradient-to-r from-indigo-600/20 to-blue-600/10 border border-indigo-500/30 text-[var(--text-primary)] px-6 py-5 rounded-2xl hover:border-indigo-500/60 hover:bg-indigo-600/20 transition-all duration-300 group"
+                            >
+                                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-600/25 group-hover:scale-110 transition-transform">
+                                    <svg className="w-7 h-7 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-base">Today's Workout</p>
+                                    <p className="text-sm text-[var(--text-secondary)] mt-0.5">Log today's session from your templates or trainer plans</p>
+                                </div>
+                                <svg className="w-5 h-5 text-indigo-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </Link>
+                        </motion.div>
+
+                        {/* My Templates quick-link */}
+                        <motion.div whileHover="hover" variants={buttonHover} className="sm:col-span-2">
+                            <Link
+                                to="/my-workouts"
+                                id="my-workouts-link"
+                                className="flex items-center gap-4 bg-gradient-to-r from-purple-600/10 to-pink-600/5 border border-purple-500/20 text-[var(--text-primary)] px-6 py-4 rounded-2xl hover:border-purple-500/40 hover:bg-purple-600/10 transition-all duration-300 group"
+                            >
+                                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center shadow-md shadow-purple-600/20 group-hover:scale-110 transition-transform">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-sm">My Workout Templates</p>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Create &amp; manage reusable workout plans</p>
+                                </div>
+                                <svg className="w-4 h-4 text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </Link>
+                        </motion.div>
                     </div>
+
                 </motion.div>
             </div>
         </div>

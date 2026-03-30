@@ -270,6 +270,182 @@
 
 /**
  * @swagger
+ * /member/workout-log:
+ *   post:
+ *     summary: Log a workout for today or a specific date (Member only)
+ *     tags: [Member]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 description: Optional ISO 8601 date (defaults to today)
+ *                 example: "2026-03-28"
+ *               note:
+ *                 type: string
+ *                 maxLength: 200
+ *                 description: Optional workout note
+ *                 example: "Leg day 🦵"
+ *     responses:
+ *       201:
+ *         description: Workout logged
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 workoutLog:
+ *                   $ref: '#/components/schemas/WorkoutLog'
+ *       403:
+ *         description: Access denied
+ *       409:
+ *         description: Workout already logged for this date
+ *   get:
+ *     summary: Get workout logs (Member only, paginated)
+ *     tags: [Member]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: Number of days of history to fetch (1–365)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Paginated workout logs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/PaginatedResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/WorkoutLog'
+ *       403:
+ *         description: Access denied
+ */
+
+/**
+ * @swagger
+ * /member/workout-log/{id}:
+ *   delete:
+ *     summary: Delete a workout log entry (Member only)
+ *     tags: [Member]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Workout log deleted
+ *       403:
+ *         description: Access denied or not authorized
+ *       404:
+ *         description: Workout log not found
+ */
+
+/**
+ * @swagger
+ * /member/streak:
+ *   get:
+ *     summary: Get workout streak statistics (Member only)
+ *     tags: [Member]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Streak statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/StreakResponse'
+ *       403:
+ *         description: Access denied
+ */
+
+/**
+ * @swagger
+ * /member/schedule:
+ *   put:
+ *     summary: Update workout schedule (Member only)
+ *     tags: [Member]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [workoutSchedule]
+ *             properties:
+ *               workoutSchedule:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                   minimum: 0
+ *                   maximum: 6
+ *                 description: Array of gym days 0=Sun through 6=Sat
+ *                 example: [1, 2, 3, 4, 5]
+ *     responses:
+ *       200:
+ *         description: Schedule updated
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Member not found
+ *   get:
+ *     summary: Get workout schedule (Member only)
+ *     tags: [Member]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current workout schedule
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 workoutSchedule:
+ *                   type: array
+ *                   items:
+ *                     type: integer
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Member not found
+ */
+
+/**
+ * @swagger
  * /member/leave-gym:
  *   post:
  *     summary: Leave current gym (Member only)

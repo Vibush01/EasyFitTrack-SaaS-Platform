@@ -120,6 +120,20 @@ const Navbar = () => {
                                     </Link>
                                 </motion.div>
                             )}
+                            {/* Today's Workout — primary CTA for members */}
+                            {user.role === 'member' && (
+                                <motion.div whileHover="hover" variants={linkHover}>
+                                    <Link
+                                        to="/today"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 border border-indigo-500/30 rounded-lg text-indigo-300 hover:bg-indigo-600/30 hover:text-indigo-200 text-sm font-semibold transition-all duration-200"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                                        </svg>
+                                        Today
+                                    </Link>
+                                </motion.div>
+                            )}
                             {(user.role === 'gym' || user.role === 'trainer') && (
                                 <motion.div whileHover="hover" variants={linkHover}>
                                     <Link to="/gym-dashboard" className="text-white hover:text-gray-200 text-sm sm:text-base font-medium transition-colors duration-300">
@@ -222,6 +236,9 @@ const Navbar = () => {
                                     <Link to="/progress-tracker" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
                                         Progress Tracker
                                     </Link>
+                                    <Link to="/my-workouts" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                        My Custom Workouts
+                                    </Link>
                                 </Dropdown>
                             )}
 
@@ -300,6 +317,14 @@ const Navbar = () => {
                                         Dashboard
                                     </Link>
                                 )}
+                                {user.role === 'member' && (
+                                    <Link to="/today" className="text-indigo-200 hover:bg-indigo-600/30 px-4 py-2 rounded-lg text-base font-semibold block flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                                        </svg>
+                                        Today's Workout
+                                    </Link>
+                                )}
                                 {(user.role === 'gym' || user.role === 'trainer') && (
                                     <Link to="/gym-dashboard" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block" onClick={() => setIsOpen(false)}>
                                         Dashboard
@@ -328,6 +353,7 @@ const Navbar = () => {
                                         <div className="px-4 py-2 text-blue-200 text-sm font-semibold uppercase tracking-wider">Tracker</div>
                                         <Link to="/macro-calculator" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Macro Calculator</Link>
                                         <Link to="/progress-tracker" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Progress Tracker</Link>
+                                        <Link to="/my-workouts" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>My Custom Workouts</Link>
                                     </>
                                 )}
 

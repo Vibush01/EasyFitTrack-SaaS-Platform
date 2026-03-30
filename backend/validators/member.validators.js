@@ -60,10 +60,51 @@ const membershipUpdateValidation = [
         .withMessage('Invalid membership duration'),
 ];
 
+const workoutLogValidation = [
+    body('date')
+        .optional()
+        .isISO8601()
+        .withMessage('Date must be a valid ISO 8601 date')
+        .custom((value) => {
+            const inputDate = new Date(value);
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            if (inputDate > today) {
+                throw new Error('Date cannot be in the future');
+            }
+            return true;
+        }),
+    body('note')
+        .optional()
+        .trim()
+        .isLength({ max: 200 })
+        .withMessage('Note must be 200 characters or less'),
+];
+
+const workoutLogIdValidation = [param('id').isMongoId().withMessage('Invalid workout log ID')];
+
+const scheduleValidation = [
+    body('workoutSchedule')
+        .isArray({ min: 1, max: 7 })
+        .withMessage('workoutSchedule must be an array with 1–7 entries')
+        .custom((arr) => {
+            if (!arr.every((v) => Number.isInteger(v) && v >= 0 && v <= 6)) {
+                throw new Error('Each value must be an integer 0 (Sun) – 6 (Sat)');
+            }
+            if (new Set(arr).size !== arr.length) {
+                throw new Error('Duplicate days are not allowed');
+            }
+            return true;
+        }),
+];
+
 module.exports = {
     macroLogValidation,
     macroIdValidation,
     progressLogValidation,
     progressIdValidation,
     membershipUpdateValidation,
+    workoutLogValidation,
+    workoutLogIdValidation,
+    scheduleValidation,
 };

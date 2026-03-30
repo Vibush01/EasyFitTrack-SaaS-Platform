@@ -1,8 +1,9 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
+import WorkoutChecklist from '../components/WorkoutChecklist';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -10,7 +11,9 @@ const RequestPlan = () => {
     const { user } = useContext(AuthContext);
     const [trainers, setTrainers] = useState([]);
     const [requests, setRequests] = useState([]);
-    const [plans, setPlans] = useState([]);
+    const [workoutPlans, setWorkoutPlans] = useState([]);  // raw workout plan docs
+    const [dietPlans, setDietPlans] = useState([]);        // raw diet plan docs
+    const [plans, setPlans] = useState([]);                // combined display list
     const [selectedTrainer, setSelectedTrainer] = useState('');
     const [requestType, setRequestType] = useState('workout');
 
@@ -51,16 +54,23 @@ const RequestPlan = () => {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
+                const rawWorkout = workoutPlansRes.data.data || workoutPlansRes.data;
+                const rawDiet = dietPlansRes.data.data || dietPlansRes.data;
+
+                setWorkoutPlans(rawWorkout);
+                setDietPlans(rawDiet);
+
                 const combinedPlans = [
-                    ...(workoutPlansRes.data.data || workoutPlansRes.data).map((plan) => ({
+                    ...rawWorkout.map((plan) => ({
+                        _id: plan._id,
                         type: 'Workout Plan',
                         title: plan.title,
-                        description: plan.exercises.map((ex) => `${ex.name}: ${ex.sets} sets, ${ex.reps} reps, Rest: ${ex.rest || 'N/A'}`).join('; '),
+                        raw: plan,  // keep full object for checklist
                         trainer: plan.trainer,
                         gym: plan.gym,
                         receivedOn: plan.createdAt,
                     })),
-                    ...(dietPlansRes.data.data || dietPlansRes.data).map((plan) => ({
+                    ...rawDiet.map((plan) => ({
                         type: 'Diet Plan',
                         title: plan.title,
                         description: plan.meals.map((meal) => `${meal.name}: ${meal.calories} kcal, Protein: ${meal.protein}g, Carbs: ${meal.carbs}g, Fats: ${meal.fats}g, Time: ${meal.time || 'N/A'}`).join('; '),
@@ -82,6 +92,12 @@ const RequestPlan = () => {
             fetchPlans();
         }
     }, [user]);
+
+    // Callback passed to WorkoutChecklist so it can trigger a re-fetch after session update
+    const refreshPlans = useCallback(() => {
+        // Re-trigger plan fetch by toggling a counter (simple approach)
+        setPlans((prev) => [...prev]);
+    }, []);
 
     // Debug logs
     console.log('Requests:', requests);
@@ -279,8 +295,12 @@ const RequestPlan = () => {
                                 <div className="space-y-4">
                                     {plans.map((plan, index) => (
                                         <motion.div
-                                            key={index}
-                                            className="bg-[var(--bg-secondary)]/50 p-5 rounded-xl border border-[var(--border-color)] hover:border-purple-500/50 transition-all duration-300"
+                                            key={plan._id || index}
+                                            className={`bg-[var(--bg-secondary)]/50 p-5 rounded-xl border transition-all duration-300 ${
+                                                plan.type === 'Workout Plan'
+                                                    ? 'border-[var(--border-color)] hover:border-blue-500/40'
+                                                    : 'border-[var(--border-color)] hover:border-green-500/40'
+                                            }`}
                                             initial="hidden"
                                             whileInView="visible"
                                             viewport={{ once: true }}
@@ -289,15 +309,35 @@ const RequestPlan = () => {
                                             <div className="flex justify-between items-start mb-3">
                                                 <div>
                                                     <h3 className="text-[var(--text-primary)] font-bold text-lg">{plan.title}</h3>
-                                                    <p className="text-[var(--text-secondary)] text-sm">{plan.type}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                                                            plan.type === 'Workout Plan'
+                                                                ? 'bg-blue-500/10 text-blue-400'
+                                                                : 'bg-green-500/10 text-green-400'
+                                                        }`}>
+                                                            {plan.type}
+                                                        </span>
+                                                        {plan.type === 'Workout Plan' && plan.raw?.exercises?.length > 0 && (
+                                                            <span className="text-xs text-[var(--text-secondary)]">
+                                                                {plan.raw.exercises.length} exercise{plan.raw.exercises.length !== 1 ? 's' : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-[var(--text-secondary)] text-xs">Trainer: {plan.trainer.name}</p>
                                                     <p className="text-[var(--text-secondary)] text-xs">{new Date(plan.receivedOn).toLocaleDateString()}</p>
                                                 </div>
                                             </div>
-                                            <div className="bg-[var(--bg-primary)]/50 p-4 rounded-lg text-[var(--text-secondary)] text-sm leading-relaxed">
-                                                {plan.description}
+                                        <div className="bg-[var(--bg-primary)]/50 p-4 rounded-lg text-[var(--text-secondary)] text-sm leading-relaxed">
+                                                {plan.type === 'Workout Plan' && plan.raw ? (
+                                                    <WorkoutChecklist
+                                                        plan={plan.raw}
+                                                        onSessionUpdate={refreshPlans}
+                                                    />
+                                                ) : (
+                                                    plan.description
+                                                )}
                                             </div>
                                         </motion.div>
                                     ))}
