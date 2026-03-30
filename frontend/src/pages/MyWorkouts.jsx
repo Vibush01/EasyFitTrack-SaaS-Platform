@@ -25,8 +25,190 @@ const CONFETTI_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ec4899', '#8b5cf6', 
 
 const DEFAULT_EXERCISE = { name: '', sets: '', reps: '', rest: '' };
 
+// ── Edit Workout Modal ────────────────────────────────────────────────
+const EditWorkoutModal = ({ workout, onClose, onSave }) => {
+    const [title, setTitle] = useState(workout.title);
+    const [exercises, setExercises] = useState(
+        workout.exercises.map((ex) => ({ ...ex })),
+    );
+    const [saving, setSaving] = useState(false);
+
+    const handleExerciseChange = (idx, field, value) => {
+        const updated = [...exercises];
+        updated[idx] = { ...updated[idx], [field]: value };
+        setExercises(updated);
+    };
+    const addExercise = () => setExercises((prev) => [...prev, { ...DEFAULT_EXERCISE }]);
+    const removeExercise = (idx) => setExercises((prev) => prev.filter((_, i) => i !== idx));
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!title.trim()) return;
+        const valid = exercises.every((ex) => ex.name && ex.sets && ex.reps);
+        if (!valid) return;
+        setSaving(true);
+        await onSave(workout._id, title, exercises);
+        setSaving(false);
+    };
+
+    return (
+        <AnimatePresence>
+            {/* Backdrop */}
+            <motion.div
+                key="backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={onClose}
+            >
+                {/* Modal panel */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.94, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.94, y: 20 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
+                >
+                    {/* Modal header */}
+                    <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[var(--border-color)]">
+                        <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                            <span className="bg-amber-500 w-1.5 h-6 rounded-full" />
+                            Edit Workout
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1 rounded-lg hover:bg-[var(--bg-secondary)]"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* Modal body — scrollable */}
+                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+                            {/* Title */}
+                            <div>
+                                <label className="block text-[var(--text-secondary)] text-sm font-medium mb-1.5">Workout Name</label>
+                                <input
+                                    type="text"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    className="w-full p-3 bg-[var(--bg-secondary)]/50 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                                    required
+                                />
+                            </div>
+
+                            {/* Exercises */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-[var(--text-primary)] font-bold text-sm">Exercises</h3>
+                                    <button
+                                        type="button"
+                                        onClick={addExercise}
+                                        className="text-amber-400 text-sm hover:text-amber-300 font-semibold transition-colors"
+                                    >
+                                        + Add Exercise
+                                    </button>
+                                </div>
+
+                                {exercises.map((ex, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="bg-[var(--bg-secondary)]/50 p-3 rounded-xl border border-[var(--border-color)] relative group"
+                                    >
+                                        {exercises.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => removeExercise(idx)}
+                                                className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                        <div className="space-y-2">
+                                            <input
+                                                type="text"
+                                                value={ex.name}
+                                                onChange={(e) => handleExerciseChange(idx, 'name', e.target.value)}
+                                                placeholder="Exercise name"
+                                                className="w-full p-2 bg-[var(--bg-primary)]/50 border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500"
+                                                required
+                                            />
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <input
+                                                    type="number"
+                                                    value={ex.sets}
+                                                    onChange={(e) => handleExerciseChange(idx, 'sets', e.target.value)}
+                                                    placeholder="Sets"
+                                                    min="1"
+                                                    className="w-full p-2 bg-[var(--bg-primary)]/50 border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-amber-500"
+                                                    required
+                                                />
+                                                <input
+                                                    type="number"
+                                                    value={ex.reps}
+                                                    onChange={(e) => handleExerciseChange(idx, 'reps', e.target.value)}
+                                                    placeholder="Reps"
+                                                    min="1"
+                                                    className="w-full p-2 bg-[var(--bg-primary)]/50 border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-amber-500"
+                                                    required
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={ex.rest}
+                                                    onChange={(e) => handleExerciseChange(idx, 'rest', e.target.value)}
+                                                    placeholder="Rest"
+                                                    className="w-full p-2 bg-[var(--bg-primary)]/50 border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-amber-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Reset chip info */}
+                            <p className="text-xs text-amber-400/70 flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                Changing exercises will reset your checklist progress for this workout.
+                            </p>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 pb-6 pt-3 border-t border-[var(--border-color)] flex gap-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="flex-1 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-secondary)] font-semibold text-sm hover:bg-[var(--bg-secondary)] transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <motion.button
+                                type="submit"
+                                disabled={saving}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 transition-all disabled:opacity-60"
+                            >
+                                {saving ? 'Saving…' : '✓ Save Changes'}
+                            </motion.button>
+                        </div>
+                    </form>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
+
 // ── Inline Checklist for a custom workout doc ─────────────────────────
-const CustomChecklist = ({ workout, onUpdate, onDelete }) => {
+const CustomChecklist = ({ workout, onUpdate, onDelete, onEdit }) => {
     const [checked, setChecked] = useState(workout.completedExercises ?? []);
     const [saving, setSaving] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
@@ -206,16 +388,27 @@ const CustomChecklist = ({ workout, onUpdate, onDelete }) => {
                 })}
             </div>
 
-            {/* Delete CTA */}
-            <button
-                onClick={() => onDelete(workout._id)}
-                className="text-xs text-red-400/60 hover:text-red-400 transition-colors mt-1 flex items-center gap-1"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                Delete workout
-            </button>
+            {/* Action row: Edit + Delete */}
+            <div className="flex items-center gap-4 mt-1">
+                <button
+                    onClick={() => onEdit(workout)}
+                    className="text-xs text-amber-400/70 hover:text-amber-400 transition-colors flex items-center gap-1"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                    Edit workout
+                </button>
+                <button
+                    onClick={() => onDelete(workout._id)}
+                    className="text-xs text-red-400/60 hover:text-red-400 transition-colors flex items-center gap-1"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    Delete workout
+                </button>
+            </div>
 
             {saving && (
                 <p className="text-xs text-[var(--text-secondary)] text-right animate-pulse">Saving…</p>
@@ -246,6 +439,9 @@ const MyWorkouts = () => {
         hidden: { opacity: 0, y: 24 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
     };
+
+    // Edit modal state
+    const [editingWorkout, setEditingWorkout] = useState(null);
 
     // ── Fetch workouts ────────────────────────────────────────────────
     const fetchWorkouts = useCallback(async () => {
@@ -310,6 +506,25 @@ const MyWorkouts = () => {
         setWorkouts((prev) =>
             prev.map((w) => (w._id === updatedWorkout._id ? updatedWorkout : w)),
         );
+    }, []);
+
+    // ── Edit save handler ─────────────────────────────────────────────
+    const handleEditSave = useCallback(async (id, newTitle, newExercises) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.put(
+                `${API_URL}/member/custom-workouts/${id}`,
+                { title: newTitle, exercises: newExercises },
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            setWorkouts((prev) =>
+                prev.map((w) => (w._id === id ? res.data.workout : w)),
+            );
+            setEditingWorkout(null);
+            toast.success('✏️ Workout updated!', { position: 'top-right' });
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to update workout', { position: 'top-right' });
+        }
     }, []);
 
     // ── Delete a workout ──────────────────────────────────────────────
@@ -558,6 +773,7 @@ const MyWorkouts = () => {
                                             workout={workout}
                                             onUpdate={handleUpdate}
                                             onDelete={handleDelete}
+                                            onEdit={setEditingWorkout}
                                         />
                                     </motion.div>
                                 ))}
@@ -566,6 +782,15 @@ const MyWorkouts = () => {
                     </motion.div>
                 </div>
             </div>
+
+            {/* Edit Modal */}
+            {editingWorkout && (
+                <EditWorkoutModal
+                    workout={editingWorkout}
+                    onClose={() => setEditingWorkout(null)}
+                    onSave={handleEditSave}
+                />
+            )}
         </div>
     );
 };

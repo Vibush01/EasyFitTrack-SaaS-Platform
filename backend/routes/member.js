@@ -881,22 +881,49 @@ router.post('/custom-workouts', authMiddleware, async (req, res, next) => {
     }
 });
 
-// PUT: update completedExercises; auto-complete + auto-streak when all checked
+// PUT: update completedExercises (checklist) OR update title/exercises (edit mode)
+// ─ If 'completedExercises' is present  → checklist progress update + auto-streak
+// ─ If 'title' or 'exercises' is present → edit the workout definition; reset checklist
 router.put('/custom-workouts/:id', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'member') {
         return res.status(403).json({ message: 'Access denied' });
     }
 
-    const { completedExercises } = req.body;
-    if (!Array.isArray(completedExercises)) {
-        return res.status(400).json({ message: 'completedExercises must be an array of indices' });
-    }
+    const { completedExercises, title, exercises } = req.body;
+    const isEditMode = title !== undefined || exercises !== undefined;
 
     try {
         const workout = await CustomWorkout.findById(req.params.id);
         if (!workout) return res.status(404).json({ message: 'Custom workout not found' });
         if (workout.member.toString() !== req.user.id) {
             return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        // ── EDIT MODE: update definition ─────────────────────────────
+        if (isEditMode) {
+            if (title !== undefined) {
+                if (!title.trim())
+                    return res.status(400).json({ message: 'Title cannot be empty' });
+                workout.title = title.trim();
+            }
+            if (exercises !== undefined) {
+                if (!Array.isArray(exercises) || exercises.length === 0) {
+                    return res.status(400).json({ message: 'At least one exercise is required' });
+                }
+                workout.exercises = exercises;
+                // Reset checklist so indices stay valid after exercise list changes
+                workout.completedExercises = [];
+                workout.status = 'in_progress';
+            }
+            await workout.save();
+            return res.json({ workout, streakLogged: false });
+        }
+
+        // ── CHECKLIST MODE: update progress ──────────────────────────
+        if (!Array.isArray(completedExercises)) {
+            return res
+                .status(400)
+                .json({ message: 'completedExercises must be an array of indices' });
         }
 
         workout.completedExercises = completedExercises;
