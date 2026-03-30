@@ -119,6 +119,28 @@ const MemberDashboard = () => {
                                 </Link>
                             </motion.div>
                         )}
+
+                        {/* My Custom Workouts — always visible for members */}
+                        <motion.div whileHover="hover" variants={buttonHover} className="sm:col-span-2">
+                            <Link
+                                to="/my-workouts"
+                                id="my-workouts-link"
+                                className="flex items-center gap-4 bg-gradient-to-r from-purple-600/15 to-pink-600/10 border border-purple-500/25 text-[var(--text-primary)] px-6 py-4 rounded-2xl hover:border-purple-500/50 hover:bg-purple-600/15 transition-all duration-300 group"
+                            >
+                                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center shadow-lg shadow-purple-600/20 group-hover:scale-110 transition-transform">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-base">My Custom Workouts</p>
+                                    <p className="text-sm text-[var(--text-secondary)] mt-0.5">Build your own routine &amp; earn your streak</p>
+                                </div>
+                                <svg className="w-5 h-5 text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </Link>
+                        </motion.div>
                     </div>
                 </motion.div>
             </div>
