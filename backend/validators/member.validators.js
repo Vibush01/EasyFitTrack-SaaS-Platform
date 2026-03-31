@@ -32,19 +32,13 @@ const macroLogValidation = [
 const macroIdValidation = [param('id').isMongoId().withMessage('Invalid macro log ID')];
 
 const progressLogValidation = [
-    body('weight')
-        .notEmpty()
-        .withMessage('Weight is required')
-        .isNumeric()
-        .withMessage('Weight must be a number'),
+    body('weight').optional({ values: 'falsy' }).isNumeric().withMessage('Weight must be a number'),
     body('muscleMass')
-        .notEmpty()
-        .withMessage('Muscle mass is required')
+        .optional({ values: 'falsy' })
         .isNumeric()
         .withMessage('Muscle mass must be a number'),
     body('fatPercentage')
-        .notEmpty()
-        .withMessage('Fat percentage is required')
+        .optional({ values: 'falsy' })
         .isNumeric()
         .withMessage('Fat percentage must be a number'),
 ];
