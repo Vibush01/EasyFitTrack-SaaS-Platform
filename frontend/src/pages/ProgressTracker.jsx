@@ -1,4 +1,5 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
+import OneRMSection from '../components/OneRMSection';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -34,6 +35,7 @@ const ProgressTracker = () => {
     const [logs, setLogs] = useState([]);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [activeTab, setActiveTab] = useState('body'); // 'body' | 'strength'
     const [formData, setFormData] = useState({
         weight: '',
         muscleMass: '',
@@ -79,25 +81,23 @@ const ProgressTracker = () => {
         return () => clearTimeout(timer);
     }, [theme]);
 
-    useEffect(() => {
-        const fetchLogs = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get(`${API_URL}/member/progress`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                // Sort logs by date ascending for the chart
-                const sortedLogs = (res.data.data || res.data).sort((a, b) => new Date(a.date) - new Date(b.date));
-                setLogs(sortedLogs);
-            } catch (err) {
-                setError('Failed to fetch progress logs');
-                toast.error('Failed to fetch progress logs' + err, { position: 'top-right' });
-            }
-        };
-        if (user?.role === 'member') {
-            fetchLogs();
+    const fetchLogs = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${API_URL}/member/progress`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const sortedLogs = (res.data.data || res.data).sort((a, b) => new Date(a.date) - new Date(b.date));
+            setLogs(sortedLogs);
+        } catch (err) {
+            setError('Failed to fetch progress logs');
+            toast.error('Failed to fetch progress logs' + err, { position: 'top-right' });
         }
-    }, [user]);
+    }, []);
+
+    useEffect(() => {
+        if (user?.role === 'member') fetchLogs();
+    }, [user, fetchLogs]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -238,6 +238,29 @@ const ProgressTracker = () => {
                 >
                     Progress Tracker
                 </motion.h1>
+
+                {/* Tab Switcher */}
+                <motion.div
+                    initial="hidden"
+                    animate="visible"
+                    variants={fadeIn}
+                    className="flex gap-1 p-1 bg-[var(--bg-card)]/80 backdrop-blur-md rounded-2xl border border-[var(--border-color)] mb-8 max-w-md mx-auto"
+                >
+                    {[['body', '📊 Body Composition'], ['strength', '💪 Strength & 1RM']].map(([key, label]) => (
+                        <button
+                            key={key}
+                            onClick={() => setActiveTab(key)}
+                            className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
+                                activeTab === key
+                                    ? 'bg-indigo-600 text-white shadow-md'
+                                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </motion.div>
+
                 {error && (
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
@@ -257,6 +280,8 @@ const ProgressTracker = () => {
                     </motion.div>
                 )}
 
+                {/* ── Body Composition Tab ─────────────────────── */}
+                {activeTab === 'body' && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Progress Logging Form */}
                     <motion.div
@@ -430,6 +455,12 @@ const ProgressTracker = () => {
                         </motion.div>
                     </div>
                 </div>
+                )}
+
+                {/* ── Strength & 1RM Tab ───────────────────────── */}
+                {activeTab === 'strength' && (
+                    <OneRMSection chartColors={chartColors} theme={theme} onLogComplete={fetchLogs} />
+                )}
             </div>
         </div>
     );
