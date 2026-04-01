@@ -145,7 +145,7 @@ router.post(
             return res.status(403).json({ message: 'Access denied' });
         }
 
-        const { weight, muscleMass, fatPercentage } = req.body;
+        const { weight, muscleMass, fatPercentage, lifts } = req.body;
 
         try {
             let images = [];
@@ -164,12 +164,19 @@ router.post(
                 images = await Promise.all(uploadPromises);
             }
 
+            // Parse lifts — might arrive as JSON string from FormData
+            let parsedLifts = [];
+            if (lifts) {
+                parsedLifts = typeof lifts === 'string' ? JSON.parse(lifts) : lifts;
+            }
+
             const progressLog = new ProgressLog({
                 member: req.user.id,
-                weight,
-                muscleMass,
-                fatPercentage,
+                weight: weight || null,
+                muscleMass: muscleMass || null,
+                fatPercentage: fatPercentage || null,
                 images,
+                lifts: parsedLifts,
             });
 
             await progressLog.save();
@@ -191,6 +198,50 @@ router.get('/progress', authMiddleware, async (req, res, next) => {
         const query = ProgressLog.find(filter).sort({ date: -1 });
         const result = await paginate(ProgressLog, filter, query, req);
         res.json(result);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get 1RM time-series data (strength tracking)
+router.get('/1rm', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const { exercise } = req.query; // optional: 'squat','bench','deadlift','ohp'
+        // Fetch only logs that contain lifts, sorted by date ascending
+        const logs = await ProgressLog.find({
+            member: req.user.id,
+            'lifts.0': { $exists: true }, // only docs with at least one lift
+        })
+            .sort({ date: 1 })
+            .select('date lifts')
+            .lean();
+
+        // Build a per-exercise time-series
+        const series = {}; // { squat: [{ date, weight1RM }], bench: [...] }
+        for (const log of logs) {
+            for (const lift of log.lifts) {
+                const key =
+                    lift.exercise === 'custom' ? lift.customName || 'custom' : lift.exercise;
+                if (exercise && key !== exercise) continue; // filter if requested
+                if (!series[key]) series[key] = [];
+                series[key].push({ date: log.date, weight1RM: lift.weight1RM });
+            }
+        }
+
+        // Compute PRs per exercise
+        const prs = {};
+        for (const [key, entries] of Object.entries(series)) {
+            const best = entries.reduce(
+                (max, e) => (e.weight1RM > max.weight1RM ? e : max),
+                entries[0],
+            );
+            prs[key] = best;
+        }
+
+        res.json({ series, prs });
     } catch (error) {
         next(error);
     }
