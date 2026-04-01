@@ -1093,6 +1093,206 @@ router.delete('/workout-templates/:id', authMiddleware, async (req, res, next) =
     }
 });
 
+// ─── Workout Streak & Schedule ──────────────────────────────
+
+// GET /member/streak — compute streak data for StreakCard
+router.get('/streak', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const member = await Member.findById(req.user.id).select('workoutSchedule').lean();
+        const schedule = member?.workoutSchedule || [0, 1, 2, 3, 4, 5, 6];
+
+        // Fetch all workout logs sorted ascending
+        const logs = await WorkoutLog.find({ member: req.user.id })
+            .sort({ date: 1 })
+            .select('date')
+            .lean();
+
+        const loggedDates = new Set(logs.map((l) => new Date(l.date).toISOString().split('T')[0]));
+
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().split('T')[0];
+        const todayDow = today.getUTCDay();
+        const todayIsGymDay = schedule.includes(todayDow);
+        const todayLogged = loggedDates.has(todayStr);
+
+        // ── Calculate current streak (walking backwards from today) ────
+        let currentStreak = 0;
+        const d = new Date(today);
+        // If today is a gym day and not yet logged, start from yesterday
+        if (todayIsGymDay && !todayLogged) {
+            d.setUTCDate(d.getUTCDate() - 1);
+        }
+        while (true) {
+            const ds = d.toISOString().split('T')[0];
+            const dow = d.getUTCDay();
+            const isGymDay = schedule.includes(dow);
+            if (isGymDay) {
+                if (loggedDates.has(ds)) {
+                    currentStreak++;
+                } else {
+                    break; // streak broken
+                }
+            }
+            // Skip rest days (they don't break the streak)
+            d.setUTCDate(d.getUTCDate() - 1);
+            // Safety: don't go back more than 2 years
+            if (today - d > 730 * 86400000) break;
+        }
+
+        // ── Calculate longest streak ────────────────────────────────
+        let longestStreak = 0;
+        let tempStreak = 0;
+        // Walk forward through all dates from first log to today
+        if (logs.length > 0) {
+            const startDate = new Date(logs[0].date);
+            startDate.setUTCHours(0, 0, 0, 0);
+            const walker = new Date(startDate);
+            while (walker <= today) {
+                const ws = walker.toISOString().split('T')[0];
+                const wDow = walker.getUTCDay();
+                const isGymDay = schedule.includes(wDow);
+                if (isGymDay) {
+                    if (loggedDates.has(ws)) {
+                        tempStreak++;
+                        if (tempStreak > longestStreak) longestStreak = tempStreak;
+                    } else {
+                        tempStreak = 0;
+                    }
+                }
+                walker.setUTCDate(walker.getUTCDate() + 1);
+            }
+        }
+
+        // ── Build last 7 days ───────────────────────────────────────
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const day = new Date(today);
+            day.setUTCDate(day.getUTCDate() - i);
+            const dayStr = day.toISOString().split('T')[0];
+            const dow = day.getUTCDay();
+            last7Days.push({
+                date: dayStr,
+                logged: loggedDates.has(dayStr),
+                isRestDay: !schedule.includes(dow),
+            });
+        }
+
+        res.json({
+            currentStreak,
+            longestStreak,
+            totalWorkouts: logs.length,
+            todayLogged,
+            todayIsGymDay,
+            workoutSchedule: schedule,
+            last7Days,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// PUT /member/schedule — update workout schedule
+router.put('/schedule', authMiddleware, scheduleValidation, validate, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const member = await Member.findById(req.user.id);
+        if (!member) return res.status(404).json({ message: 'Member not found' });
+        member.workoutSchedule = req.body.workoutSchedule;
+        await member.save();
+        res.json({ message: 'Schedule updated', workoutSchedule: member.workoutSchedule });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Workout Log CRUD (used by StreakCard) ───────────────────
+
+// POST /member/workout-log — log today's workout
+router.post(
+    '/workout-log',
+    authMiddleware,
+    workoutLogValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'member') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+        try {
+            const logDate = req.body.date ? new Date(req.body.date) : new Date();
+            logDate.setUTCHours(0, 0, 0, 0);
+
+            // Check for duplicate
+            const existing = await WorkoutLog.findOne({ member: req.user.id, date: logDate });
+            if (existing) {
+                return res
+                    .status(409)
+                    .json({ message: 'Already logged for this date', workoutLog: existing });
+            }
+
+            const workoutLog = new WorkoutLog({
+                member: req.user.id,
+                date: logDate,
+                note: req.body.note || '',
+            });
+            await workoutLog.save();
+            res.status(201).json({ message: 'Workout logged', workoutLog });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
+
+// GET /member/workout-log — list workout logs with optional filters
+router.get('/workout-log', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const filter = { member: req.user.id };
+        if (req.query.days) {
+            const cutoff = new Date();
+            cutoff.setUTCDate(cutoff.getUTCDate() - parseInt(req.query.days));
+            cutoff.setUTCHours(0, 0, 0, 0);
+            filter.date = { $gte: cutoff };
+        }
+        const limit = parseInt(req.query.limit) || 100;
+        const logs = await WorkoutLog.find(filter).sort({ date: -1 }).limit(limit).lean();
+        res.json({ data: logs });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// DELETE /member/workout-log/:id — remove a workout log
+router.delete(
+    '/workout-log/:id',
+    authMiddleware,
+    workoutLogIdValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'member') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+        try {
+            const log = await WorkoutLog.findById(req.params.id);
+            if (!log) return res.status(404).json({ message: 'Workout log not found' });
+            if (log.member.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Not authorized to delete this log' });
+            }
+            await log.deleteOne();
+            res.json({ message: 'Workout log deleted' });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
+
 // ─── Daily Logs (Today's Workout Hub) ───────────────────────
 
 // GET history of past completed logs (must be before /:id route)
