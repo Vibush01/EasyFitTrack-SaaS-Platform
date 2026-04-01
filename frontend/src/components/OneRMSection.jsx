@@ -115,8 +115,8 @@ const OneRMSection = ({ chartColors, theme, onLogComplete }) => {
             };
             await axios.post(
                 `${API_URL}/member/progress`,
-                { lifts: JSON.stringify([lift]) },
-                { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } },
+                { lifts: [lift] },
+                { headers: { Authorization: `Bearer ${token}` } },
             );
             toast.success('💪 1RM logged!', { position: 'top-right' });
             setWeight1RM('');
