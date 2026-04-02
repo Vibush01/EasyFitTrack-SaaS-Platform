@@ -15,6 +15,8 @@ const {
     planRequestActionValidation,
     trainerScheduleValidation,
     bookSessionValidation,
+    coachingRequestValidation,
+    coachingRequestActionValidation,
 } = require('../validators/trainer.validators');
 const paginate = require('../utils/paginate');
 const WorkoutPlan = require('../models/WorkoutPlan');
@@ -65,12 +67,9 @@ router.post(
             } else {
                 // Gym client — verify same gym
                 if (!trainer.gym) {
-                    return res
-                        .status(400)
-                        .json({
-                            message:
-                                'You are not associated with a gym. Set clientType to personal.',
-                        });
+                    return res.status(400).json({
+                        message: 'You are not associated with a gym. Set clientType to personal.',
+                    });
                 }
                 if (!member.gym || member.gym.toString() !== trainer.gym.toString()) {
                     return res
@@ -230,11 +229,9 @@ router.post('/diet-plans', authMiddleware, dietPlanValidation, validate, async (
             planClientType = 'personal';
         } else {
             if (!trainer.gym) {
-                return res
-                    .status(400)
-                    .json({
-                        message: 'You are not associated with a gym. Set clientType to personal.',
-                    });
+                return res.status(400).json({
+                    message: 'You are not associated with a gym. Set clientType to personal.',
+                });
             }
             if (!member.gym || member.gym.toString() !== trainer.gym.toString()) {
                 return res.status(404).json({ message: 'Member not found or not in the same gym' });
@@ -561,12 +558,9 @@ router.post(
                 status: 'pending',
             });
             if (existingRequest) {
-                return res
-                    .status(400)
-                    .json({
-                        message:
-                            'You already have a pending request of this type with this trainer',
-                    });
+                return res.status(400).json({
+                    message: 'You already have a pending request of this type with this trainer',
+                });
             }
 
             const planRequest = new PlanRequest({
@@ -908,53 +902,61 @@ router.put('/gym/update', authMiddleware, async (req, res, next) => {
 // ─── Personal Coaching Requests ──────────────────────────────
 
 // POST /trainer/coaching-requests — Member sends a coaching request to any trainer
-router.post('/coaching-requests', authMiddleware, async (req, res, next) => {
-    if (req.user.role !== 'member') {
-        return res.status(403).json({ message: 'Only members can send coaching requests' });
-    }
-
-    const { trainerId, message } = req.body;
-
-    try {
-        if (!trainerId) {
-            return res.status(400).json({ message: 'trainerId is required' });
+router.post(
+    '/coaching-requests',
+    authMiddleware,
+    coachingRequestValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'member') {
+            return res.status(403).json({ message: 'Only members can send coaching requests' });
         }
 
-        const trainer = await Trainer.findById(trainerId);
-        if (!trainer) {
-            return res.status(404).json({ message: 'Trainer not found' });
+        const { trainerId, message } = req.body;
+
+        try {
+            if (!trainerId) {
+                return res.status(400).json({ message: 'trainerId is required' });
+            }
+
+            const trainer = await Trainer.findById(trainerId);
+            if (!trainer) {
+                return res.status(404).json({ message: 'Trainer not found' });
+            }
+
+            // Check if already a personal client
+            if (trainer.personalClients.map((id) => id.toString()).includes(req.user.id)) {
+                return res
+                    .status(400)
+                    .json({ message: 'You are already a personal client of this trainer' });
+            }
+
+            // Check for existing pending request
+            const existing = await CoachingRequest.findOne({
+                member: req.user.id,
+                trainer: trainerId,
+                status: 'pending',
+            });
+            if (existing) {
+                return res
+                    .status(400)
+                    .json({
+                        message: 'You already have a pending coaching request with this trainer',
+                    });
+            }
+
+            const request = await CoachingRequest.create({
+                member: req.user.id,
+                trainer: trainerId,
+                message: message || '',
+            });
+
+            res.status(201).json({ message: 'Coaching request sent', request });
+        } catch (error) {
+            next(error);
         }
-
-        // Check if already a personal client
-        if (trainer.personalClients.map((id) => id.toString()).includes(req.user.id)) {
-            return res
-                .status(400)
-                .json({ message: 'You are already a personal client of this trainer' });
-        }
-
-        // Check for existing pending request
-        const existing = await CoachingRequest.findOne({
-            member: req.user.id,
-            trainer: trainerId,
-            status: 'pending',
-        });
-        if (existing) {
-            return res
-                .status(400)
-                .json({ message: 'You already have a pending coaching request with this trainer' });
-        }
-
-        const request = await CoachingRequest.create({
-            member: req.user.id,
-            trainer: trainerId,
-            message: message || '',
-        });
-
-        res.status(201).json({ message: 'Coaching request sent', request });
-    } catch (error) {
-        next(error);
-    }
-});
+    },
+);
 
 // GET /trainer/coaching-requests — Trainer views incoming coaching requests
 router.get('/coaching-requests', authMiddleware, async (req, res, next) => {
@@ -974,47 +976,53 @@ router.get('/coaching-requests', authMiddleware, async (req, res, next) => {
 });
 
 // POST /trainer/coaching-requests/:id/action — Accept or deny a coaching request
-router.post('/coaching-requests/:id/action', authMiddleware, async (req, res, next) => {
-    if (req.user.role !== 'trainer') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const { action } = req.body; // 'accept' or 'deny'
-    if (!['accept', 'deny'].includes(action)) {
-        return res.status(400).json({ message: 'Action must be accept or deny' });
-    }
-
-    try {
-        const request = await CoachingRequest.findById(req.params.id);
-        if (!request) {
-            return res.status(404).json({ message: 'Coaching request not found' });
-        }
-        if (request.trainer.toString() !== req.user.id) {
-            return res.status(403).json({ message: 'Not authorized' });
-        }
-        if (request.status !== 'pending') {
-            return res.status(400).json({ message: 'Request has already been processed' });
+router.post(
+    '/coaching-requests/:id/action',
+    authMiddleware,
+    coachingRequestActionValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'trainer') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        if (action === 'accept') {
-            request.status = 'accepted';
-            await request.save();
-
-            // Add member to trainer's personalClients (idempotent)
-            await Trainer.findByIdAndUpdate(req.user.id, {
-                $addToSet: { personalClients: request.member },
-            });
-
-            res.json({ message: 'Coaching request accepted — client added', request });
-        } else {
-            request.status = 'denied';
-            await request.save();
-            res.json({ message: 'Coaching request denied', request });
+        const { action } = req.body; // 'accept' or 'deny'
+        if (!['accept', 'deny'].includes(action)) {
+            return res.status(400).json({ message: 'Action must be accept or deny' });
         }
-    } catch (error) {
-        next(error);
-    }
-});
+
+        try {
+            const request = await CoachingRequest.findById(req.params.id);
+            if (!request) {
+                return res.status(404).json({ message: 'Coaching request not found' });
+            }
+            if (request.trainer.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Not authorized' });
+            }
+            if (request.status !== 'pending') {
+                return res.status(400).json({ message: 'Request has already been processed' });
+            }
+
+            if (action === 'accept') {
+                request.status = 'accepted';
+                await request.save();
+
+                // Add member to trainer's personalClients (idempotent)
+                await Trainer.findByIdAndUpdate(req.user.id, {
+                    $addToSet: { personalClients: request.member },
+                });
+
+                res.json({ message: 'Coaching request accepted — client added', request });
+            } else {
+                request.status = 'denied';
+                await request.save();
+                res.json({ message: 'Coaching request denied', request });
+            }
+        } catch (error) {
+            next(error);
+        }
+    },
+);
 
 // ─── Client Roster ───────────────────────────────────────────
 
