@@ -176,23 +176,34 @@ const Navbar = () => {
                             )}
 
                             {/* Trainer Dropdown */}
-                            {user.role === 'trainer' && userDetails?.gym && (
+                            {user.role === 'trainer' && (
                                 <Dropdown title="Trainer Tools">
-                                    <Link to={`/gym/${userDetails.gym}`} className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
-                                        My Gym
+                                    <Link to="/client-roster" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                        Clients
                                     </Link>
-                                    <Link to="/membership-management" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
-                                        Membership Management
-                                    </Link>
+                                    {userDetails?.gym && (
+                                        <>
+                                            <Link to={`/gym/${userDetails.gym}`} className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                                My Gym
+                                            </Link>
+                                            <Link to="/membership-management" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                                Membership Management
+                                            </Link>
+                                        </>
+                                    )}
                                     <Link to="/workout-plans" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
                                         Workout Plans
                                     </Link>
-                                    <Link to="/manage-schedule" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
-                                        Manage Schedule
-                                    </Link>
-                                    <Link to="/view-bookings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
-                                        View Bookings
-                                    </Link>
+                                    {userDetails?.gym && (
+                                        <>
+                                            <Link to="/manage-schedule" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                                Manage Schedule
+                                            </Link>
+                                            <Link to="/view-bookings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                                View Bookings
+                                            </Link>
+                                        </>
+                                    )}
                                 </Dropdown>
                             )}
 
@@ -357,14 +368,23 @@ const Navbar = () => {
                                     </>
                                 )}
 
-                                {user.role === 'trainer' && userDetails?.gym && (
+                                {user.role === 'trainer' && (
                                     <>
                                         <div className="px-4 py-2 text-blue-200 text-sm font-semibold uppercase tracking-wider">Trainer Tools</div>
-                                        <Link to={`/gym/${userDetails.gym}`} className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>My Gym</Link>
-                                        <Link to="/membership-management" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Membership Management</Link>
+                                        <Link to="/client-roster" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Clients</Link>
+                                        {userDetails?.gym && (
+                                            <>
+                                                <Link to={`/gym/${userDetails.gym}`} className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>My Gym</Link>
+                                                <Link to="/membership-management" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Membership Management</Link>
+                                            </>
+                                        )}
                                         <Link to="/workout-plans" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Workout Plans</Link>
-                                        <Link to="/manage-schedule" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Manage Schedule</Link>
-                                        <Link to="/view-bookings" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>View Bookings</Link>
+                                        {userDetails?.gym && (
+                                            <>
+                                                <Link to="/manage-schedule" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Manage Schedule</Link>
+                                                <Link to="/view-bookings" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>View Bookings</Link>
+                                            </>
+                                        )}
                                     </>
                                 )}
 
