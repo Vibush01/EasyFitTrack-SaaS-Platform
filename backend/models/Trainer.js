@@ -10,6 +10,7 @@ const trainerSchema = new mongoose.Schema({
     role: { type: String, default: 'trainer' },
     profileImage: { type: String },
     gym: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', default: null }, // Gym they belong to
+    personalClients: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Member' }], // Independent coaching clients
 });
 
 trainerSchema.pre('save', async function (next) {
