@@ -29,6 +29,43 @@ const Member = require('../models/Member');
 const Gym = require('../models/Gym');
 const CoachingRequest = require('../models/CoachingRequest');
 
+// ─── Trainer Discovery ──────────────────────────────────────────
+// GET /trainer/browse — public list of trainers for members to discover
+router.get('/browse', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Only members can browse trainers' });
+    }
+
+    try {
+        const { search } = req.query;
+        const filter = {};
+        if (search) {
+            filter.name = { $regex: search, $options: 'i' };
+        }
+
+        const trainers = await Trainer.find(filter)
+            .select('name email profileImage experienceYears experienceMonths gym personalClients')
+            .populate('gym', 'gymName address')
+            .lean();
+
+        // Add metadata without exposing sensitive data
+        const result = trainers.map((t) => ({
+            _id: t._id,
+            name: t.name,
+            email: t.email,
+            profileImage: t.profileImage,
+            experienceYears: t.experienceYears,
+            experienceMonths: t.experienceMonths,
+            gym: t.gym, // { _id, gymName, address } or null
+            personalClientCount: t.personalClients?.length || 0,
+        }));
+
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Create a workout plan (Trainer only — supports both gym and personal clients)
 router.post(
     '/workout-plans',
@@ -938,11 +975,9 @@ router.post(
                 status: 'pending',
             });
             if (existing) {
-                return res
-                    .status(400)
-                    .json({
-                        message: 'You already have a pending coaching request with this trainer',
-                    });
+                return res.status(400).json({
+                    message: 'You already have a pending coaching request with this trainer',
+                });
             }
 
             const request = await CoachingRequest.create({

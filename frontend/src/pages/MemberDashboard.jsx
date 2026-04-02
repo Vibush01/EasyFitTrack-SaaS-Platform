@@ -183,18 +183,32 @@ const MemberDashboard = () => {
                                 </motion.div>
                             </>
                         ) : (
-                            <motion.div whileHover="hover" variants={buttonHover} className="col-span-full">
-                                <Link
-                                    to="/gyms"
-                                    className="flex flex-col items-center justify-center w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-2xl hover:from-blue-500 hover:to-purple-500 transition-all duration-300 shadow-xl shadow-blue-600/20 group"
-                                >
-                                    <svg className="w-12 h-12 mb-4 text-white/90 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                    <span className="text-2xl font-bold">Find a Gym</span>
-                                    <span className="text-base text-blue-100 mt-2">Search and join a gym to get started</span>
-                                </Link>
-                            </motion.div>
+                            <>
+                                <motion.div whileHover="hover" variants={buttonHover}>
+                                    <Link
+                                        to="/gyms"
+                                        className="flex flex-col items-center justify-center w-full h-full bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-2xl hover:from-blue-500 hover:to-blue-600 transition-all duration-300 shadow-xl shadow-blue-600/20 group"
+                                    >
+                                        <svg className="w-10 h-10 mb-3 text-white/90 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <span className="text-lg font-bold">Find a Gym</span>
+                                        <span className="text-sm text-blue-100 mt-1">Search and join a gym</span>
+                                    </Link>
+                                </motion.div>
+                                <motion.div whileHover="hover" variants={buttonHover}>
+                                    <Link
+                                        to="/find-trainer"
+                                        className="flex flex-col items-center justify-center w-full h-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 rounded-2xl hover:from-purple-500 hover:to-indigo-500 transition-all duration-300 shadow-xl shadow-purple-600/20 group"
+                                    >
+                                        <svg className="w-10 h-10 mb-3 text-white/90 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        <span className="text-lg font-bold">Find a Trainer</span>
+                                        <span className="text-sm text-purple-100 mt-1">Hire a personal coach</span>
+                                    </Link>
+                                </motion.div>
+                            </>
                         )}
 
                         {/* Today's Workout — always visible, primary CTA */}

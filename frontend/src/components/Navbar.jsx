@@ -163,7 +163,7 @@ const Navbar = () => {
                                             <Link to="/book-session" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
                                                 Book Session
                                             </Link>
-                                            <Link to="/request-plan" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                        <Link to="/request-plan" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
                                                 Request Plan
                                             </Link>
                                         </>
@@ -172,6 +172,9 @@ const Navbar = () => {
                                             Find a Gym
                                         </Link>
                                     )}
+                                    <Link to="/find-trainer" className="block px-4 py-2 text-sm text-gray-300 hover:bg-purple-600 hover:text-white transition-colors">
+                                        Find a Trainer
+                                    </Link>
                                 </Dropdown>
                             )}
 
@@ -360,6 +363,7 @@ const Navbar = () => {
                                         ) : (
                                             <Link to="/gyms" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Find a Gym</Link>
                                         )}
+                                        <Link to="/find-trainer" className="text-white hover:bg-purple-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Find a Trainer</Link>
 
                                         <div className="px-4 py-2 text-blue-200 text-sm font-semibold uppercase tracking-wider">Tracker</div>
                                         <Link to="/macro-calculator" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Macro Calculator</Link>
