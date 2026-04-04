@@ -11,18 +11,20 @@ const WorkoutPlans = () => {
     const [plans, setPlans] = useState([]);
     const [dietPlans, setDietPlans] = useState([]);
     const [requests, setRequests] = useState([]);
-    const [members, setMembers] = useState([]);
+    const [members, setMembers] = useState({ gymClients: [], personalClients: [] });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [activeTab, setActiveTab] = useState('workout');
     const [workoutForm, setWorkoutForm] = useState({
         memberId: '',
+        clientType: 'gym',
         title: '',
         description: '',
         exercises: [{ name: '', sets: '', reps: '', rest: '' }],
     });
     const [dietForm, setDietForm] = useState({
         memberId: '',
+        clientType: 'gym',
         title: '',
         description: '',
         meals: [{ name: '', calories: '', protein: '', carbs: '', fats: '', time: '' }],
@@ -65,12 +67,13 @@ const WorkoutPlans = () => {
         const fetchMembers = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const trainerRes = await axios.get(`${API_URL}/auth/profile`, {
+                const res = await axios.get(`${API_URL}/trainer/clients`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                const gymId = trainerRes.data.gym;
-                const gymRes = await axios.get(`${API_URL}/gym/${gymId}`);
-                setMembers(gymRes.data.members);
+                setMembers({
+                    gymClients: res.data.gymClients || [],
+                    personalClients: res.data.personalClients || [],
+                });
             } catch (err) {
                 setError('Failed to fetch members');
                 toast.error('Failed to fetch members' + err, { position: 'top-right' });
@@ -90,6 +93,11 @@ const WorkoutPlans = () => {
             const field = e.target.name.split('.')[1];
             exercises[index][field] = e.target.value;
             setWorkoutForm({ ...workoutForm, exercises });
+        } else if (e.target.name === 'memberId') {
+            // Auto-detect clientType based on which group the member belongs to
+            const memberId = e.target.value;
+            const isPersonal = members.personalClients.some(m => m._id === memberId);
+            setWorkoutForm({ ...workoutForm, memberId, clientType: isPersonal ? 'personal' : 'gym' });
         } else {
             setWorkoutForm({ ...workoutForm, [e.target.name]: e.target.value });
         }
@@ -101,6 +109,10 @@ const WorkoutPlans = () => {
             const field = e.target.name.split('.')[1];
             meals[index][field] = e.target.value;
             setDietForm({ ...dietForm, meals });
+        } else if (e.target.name === 'memberId') {
+            const memberId = e.target.value;
+            const isPersonal = members.personalClients.some(m => m._id === memberId);
+            setDietForm({ ...dietForm, memberId, clientType: isPersonal ? 'personal' : 'gym' });
         } else {
             setDietForm({ ...dietForm, [e.target.name]: e.target.value });
         }
@@ -140,6 +152,7 @@ const WorkoutPlans = () => {
             const token = localStorage.getItem('token');
             const data = {
                 memberId: workoutForm.memberId,
+                clientType: workoutForm.clientType,
                 title: workoutForm.title,
                 description: workoutForm.description,
                 exercises: workoutForm.exercises,
@@ -164,6 +177,7 @@ const WorkoutPlans = () => {
 
             setWorkoutForm({
                 memberId: '',
+                clientType: 'gym',
                 title: '',
                 description: '',
                 exercises: [{ name: '', sets: '', reps: '', rest: '' }],
@@ -180,6 +194,7 @@ const WorkoutPlans = () => {
             const token = localStorage.getItem('token');
             const data = {
                 memberId: dietForm.memberId,
+                clientType: dietForm.clientType,
                 title: dietForm.title,
                 description: dietForm.description,
                 meals: dietForm.meals,
@@ -204,6 +219,7 @@ const WorkoutPlans = () => {
 
             setDietForm({
                 memberId: '',
+                clientType: 'gym',
                 title: '',
                 description: '',
                 meals: [{ name: '', calories: '', protein: '', carbs: '', fats: '', time: '' }],
@@ -217,6 +233,7 @@ const WorkoutPlans = () => {
     const handleWorkoutEdit = (plan) => {
         setWorkoutForm({
             memberId: plan.member._id,
+            clientType: plan.clientType || 'gym',
             title: plan.title,
             description: plan.description,
             exercises: plan.exercises,
@@ -228,6 +245,7 @@ const WorkoutPlans = () => {
     const handleDietEdit = (plan) => {
         setDietForm({
             memberId: plan.member._id,
+            clientType: plan.clientType || 'gym',
             title: plan.title,
             description: plan.description,
             meals: plan.meals,
@@ -480,9 +498,20 @@ const WorkoutPlans = () => {
                                         required
                                     >
                                         <option value="">Select Member</option>
-                                        {members.map((member) => (
-                                            <option key={member._id} value={member._id}>{member.name}</option>
-                                        ))}
+                                        {members.gymClients.length > 0 && (
+                                            <optgroup label="🏢 Gym Clients">
+                                                {members.gymClients.map((member) => (
+                                                    <option key={member._id} value={member._id}>{member.name}</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                        {members.personalClients.length > 0 && (
+                                            <optgroup label="👤 Personal Clients">
+                                                {members.personalClients.map((member) => (
+                                                    <option key={member._id} value={member._id}>{member.name}</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
                                     </select>
                                 </div>
                                 <div>
@@ -587,7 +616,7 @@ const WorkoutPlans = () => {
                                         type="button"
                                         onClick={() => {
                                             setEditWorkoutId(null);
-                                            setWorkoutForm({ memberId: '', title: '', description: '', exercises: [{ name: '', sets: '', reps: '', rest: '' }] });
+                                            setWorkoutForm({ memberId: '', clientType: 'gym', title: '', description: '', exercises: [{ name: '', sets: '', reps: '', rest: '' }] });
                                         }}
                                         className="w-full bg-gray-700 text-white p-3 rounded-xl font-medium hover:bg-gray-600 transition-all duration-300 mt-2"
                                     >
@@ -607,9 +636,20 @@ const WorkoutPlans = () => {
                                         required
                                     >
                                         <option value="">Select Member</option>
-                                        {members.map((member) => (
-                                            <option key={member._id} value={member._id}>{member.name}</option>
-                                        ))}
+                                        {members.gymClients.length > 0 && (
+                                            <optgroup label="🏢 Gym Clients">
+                                                {members.gymClients.map((member) => (
+                                                    <option key={member._id} value={member._id}>{member.name}</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                        {members.personalClients.length > 0 && (
+                                            <optgroup label="👤 Personal Clients">
+                                                {members.personalClients.map((member) => (
+                                                    <option key={member._id} value={member._id}>{member.name}</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
                                     </select>
                                 </div>
                                 <div>
@@ -734,7 +774,7 @@ const WorkoutPlans = () => {
                                         type="button"
                                         onClick={() => {
                                             setEditDietId(null);
-                                            setDietForm({ memberId: '', title: '', description: '', meals: [{ name: '', calories: '', protein: '', carbs: '', fats: '', time: '' }] });
+                                            setDietForm({ memberId: '', clientType: 'gym', title: '', description: '', meals: [{ name: '', calories: '', protein: '', carbs: '', fats: '', time: '' }] });
                                         }}
                                         className="w-full bg-gray-700 text-white p-3 rounded-xl font-medium hover:bg-gray-600 transition-all duration-300 mt-2"
                                     >

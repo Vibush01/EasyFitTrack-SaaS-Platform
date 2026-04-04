@@ -42,10 +42,10 @@ app.use(
 // Security: Helmet sets secure HTTP headers
 app.use(helmet());
 
-// Rate Limiting: Global limiter (100 requests per 15 minutes per IP)
+// Rate Limiting: Global limiter (500 requests per 15 minutes per IP)
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 500,
     standardHeaders: true,
     legacyHeaders: false,
     message: { message: 'Too many requests, please try again later' },

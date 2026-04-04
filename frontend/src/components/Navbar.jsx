@@ -71,8 +71,10 @@ const Navbar = () => {
     // Determine if the user can access the Chat page
     const canAccessChat = () => {
         if (!user) return false;
-        if (user.role === 'gym') return true; // Gym Profiles can always access Chat
-        return (user.role === 'member' || user.role === 'trainer') && userDetails?.gym; // Members and Trainers need to be in a gym
+        if (user.role === 'gym') return true;
+        // Allow all trainers and members — Chat.jsx handles mode detection
+        // (gym chat requires gym, personal DMs require coaching connections)
+        return user.role === 'member' || user.role === 'trainer';
     };
 
     // Animation Variants
@@ -163,7 +165,7 @@ const Navbar = () => {
                                             <Link to="/book-session" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
                                                 Book Session
                                             </Link>
-                                            <Link to="/request-plan" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                        <Link to="/request-plan" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
                                                 Request Plan
                                             </Link>
                                         </>
@@ -172,27 +174,41 @@ const Navbar = () => {
                                             Find a Gym
                                         </Link>
                                     )}
+                                    <Link to="/find-trainer" className="block px-4 py-2 text-sm text-gray-300 hover:bg-purple-600 hover:text-white transition-colors">
+                                        Find a Trainer
+                                    </Link>
                                 </Dropdown>
                             )}
 
                             {/* Trainer Dropdown */}
-                            {user.role === 'trainer' && userDetails?.gym && (
+                            {user.role === 'trainer' && (
                                 <Dropdown title="Trainer Tools">
-                                    <Link to={`/gym/${userDetails.gym}`} className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
-                                        My Gym
+                                    <Link to="/client-roster" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                        Clients
                                     </Link>
-                                    <Link to="/membership-management" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
-                                        Membership Management
-                                    </Link>
+                                    {userDetails?.gym && (
+                                        <>
+                                            <Link to={`/gym/${userDetails.gym}`} className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                                My Gym
+                                            </Link>
+                                            <Link to="/membership-management" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                                Membership Management
+                                            </Link>
+                                        </>
+                                    )}
                                     <Link to="/workout-plans" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
                                         Workout Plans
                                     </Link>
-                                    <Link to="/manage-schedule" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
-                                        Manage Schedule
-                                    </Link>
-                                    <Link to="/view-bookings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
-                                        View Bookings
-                                    </Link>
+                                    {userDetails?.gym && (
+                                        <>
+                                            <Link to="/manage-schedule" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                                Manage Schedule
+                                            </Link>
+                                            <Link to="/view-bookings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white transition-colors">
+                                                View Bookings
+                                            </Link>
+                                        </>
+                                    )}
                                 </Dropdown>
                             )}
 
@@ -349,6 +365,7 @@ const Navbar = () => {
                                         ) : (
                                             <Link to="/gyms" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Find a Gym</Link>
                                         )}
+                                        <Link to="/find-trainer" className="text-white hover:bg-purple-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Find a Trainer</Link>
 
                                         <div className="px-4 py-2 text-blue-200 text-sm font-semibold uppercase tracking-wider">Tracker</div>
                                         <Link to="/macro-calculator" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Macro Calculator</Link>
@@ -357,14 +374,23 @@ const Navbar = () => {
                                     </>
                                 )}
 
-                                {user.role === 'trainer' && userDetails?.gym && (
+                                {user.role === 'trainer' && (
                                     <>
                                         <div className="px-4 py-2 text-blue-200 text-sm font-semibold uppercase tracking-wider">Trainer Tools</div>
-                                        <Link to={`/gym/${userDetails.gym}`} className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>My Gym</Link>
-                                        <Link to="/membership-management" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Membership Management</Link>
+                                        <Link to="/client-roster" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Clients</Link>
+                                        {userDetails?.gym && (
+                                            <>
+                                                <Link to={`/gym/${userDetails.gym}`} className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>My Gym</Link>
+                                                <Link to="/membership-management" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Membership Management</Link>
+                                            </>
+                                        )}
                                         <Link to="/workout-plans" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Workout Plans</Link>
-                                        <Link to="/manage-schedule" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Manage Schedule</Link>
-                                        <Link to="/view-bookings" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>View Bookings</Link>
+                                        {userDetails?.gym && (
+                                            <>
+                                                <Link to="/manage-schedule" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>Manage Schedule</Link>
+                                                <Link to="/view-bookings" className="text-white hover:bg-blue-600 px-4 py-2 rounded-lg text-base font-medium block pl-8" onClick={() => setIsOpen(false)}>View Bookings</Link>
+                                            </>
+                                        )}
                                     </>
                                 )}
 
