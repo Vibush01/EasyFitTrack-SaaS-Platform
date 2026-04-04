@@ -8,6 +8,43 @@ const Member = require('../models/Member');
 const Gym = require('../models/Gym');
 const paginate = require('../utils/paginate');
 
+// ─── Personal DM Messages ──────────────────────────────────────
+// Get DM messages between current user and another user (gym-agnostic)
+router.get('/dm/:otherUserId', authMiddleware, async (req, res, next) => {
+    const { otherUserId } = req.params;
+
+    try {
+        const myModel = req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1);
+        const otherUser = await getUserModel(otherUserId);
+        if (!otherUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const otherModel = otherUser.role.charAt(0).toUpperCase() + otherUser.role.slice(1);
+
+        const messages = await ChatMessage.find({
+            chatType: 'personal',
+            $or: [
+                {
+                    sender: req.user.id,
+                    senderModel: myModel,
+                    receiver: otherUserId,
+                    receiverModel: otherModel,
+                },
+                {
+                    sender: otherUserId,
+                    senderModel: otherModel,
+                    receiver: req.user.id,
+                    receiverModel: myModel,
+                },
+            ],
+        }).sort({ timestamp: 1 });
+
+        res.json(messages);
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Get chat messages between sender and receiver within a gym
 router.get('/messages/:gymId/:receiverId', authMiddleware, async (req, res, next) => {
     const { gymId, receiverId } = req.params;
@@ -24,7 +61,9 @@ router.get('/messages/:gymId/:receiverId', authMiddleware, async (req, res, next
         if (req.user.role === 'trainer') {
             // Trainers can chat with Members and Gym Profile
             if (receiverModel !== 'Member' && receiverModel !== 'Gym') {
-                return res.status(403).json({ message: 'Trainers can only chat with Members and the Gym Profile' });
+                return res
+                    .status(403)
+                    .json({ message: 'Trainers can only chat with Members and the Gym Profile' });
             }
         } else if (req.user.role === 'member') {
             // Members can only chat with Trainers
@@ -34,14 +73,28 @@ router.get('/messages/:gymId/:receiverId', authMiddleware, async (req, res, next
         } else if (req.user.role === 'gym') {
             // Gym Profiles can only chat with Trainers
             if (receiverModel !== 'Trainer') {
-                return res.status(403).json({ message: 'Gym Profiles can only chat with Trainers' });
+                return res
+                    .status(403)
+                    .json({ message: 'Gym Profiles can only chat with Trainers' });
             }
         }
 
         const messages = await ChatMessage.find({
             $or: [
-                { sender: req.user.id, senderModel, receiver: receiverId, receiverModel, gym: gymId },
-                { sender: receiverId, senderModel: receiverModel, receiver: req.user.id, receiverModel: senderModel, gym: gymId },
+                {
+                    sender: req.user.id,
+                    senderModel,
+                    receiver: receiverId,
+                    receiverModel,
+                    gym: gymId,
+                },
+                {
+                    sender: receiverId,
+                    senderModel: receiverModel,
+                    receiver: req.user.id,
+                    receiverModel: senderModel,
+                    gym: gymId,
+                },
             ],
         }).sort({ timestamp: 1 });
 
@@ -155,7 +208,9 @@ router.get('/announcements', authMiddleware, async (req, res, next) => {
     try {
         const member = await Member.findById(req.user.id);
         if (!member || !member.gym) {
-            return res.status(404).json({ message: 'Member not found or not associated with a gym' });
+            return res
+                .status(404)
+                .json({ message: 'Member not found or not associated with a gym' });
         }
 
         const filter = { gym: member.gym };
