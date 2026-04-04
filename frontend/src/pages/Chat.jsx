@@ -101,12 +101,41 @@ const Chat = () => {
                     gym.members.forEach((member) =>
                         receiversList.push({ _id: member._id, name: member.name, role: 'member' })
                     );
+
+                    // Cross-reference with personal clients to add PT badge
+                    try {
+                        const clientsRes = await axios.get(`${API_URL}/trainer/clients`, {
+                            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                        });
+                        const personalIds = new Set(
+                            (clientsRes.data.personalClients || []).map(c => c._id)
+                        );
+                        receiversList.forEach(r => {
+                            if (personalIds.has(r._id)) r.isPT = true;
+                        });
+                    } catch { /* silent — badge is non-critical */ }
                 } else if (user.role === 'member') {
                     // Members can only chat with Trainers
                     gym.trainers.forEach((trainer) =>
                         receiversList.push({ _id: trainer._id, name: trainer.name, role: 'trainer' })
                     );
+
+                    // Cross-reference with coaching requests to badge personal coaches
+                    try {
+                        const reqsRes = await axios.get(`${API_URL}/trainer/coaching-requests/member`, {
+                            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                        });
+                        const coachIds = new Set(
+                            (reqsRes.data || []).filter(r => r.status === 'accepted').map(r => r.trainer?._id || r.trainer)
+                        );
+                        receiversList.forEach(r => {
+                            if (coachIds.has(r._id)) r.isPT = true;
+                        });
+                    } catch { /* silent */ }
                 }
+
+                // Sort: PT clients first for visibility
+                receiversList.sort((a, b) => (b.isPT ? 1 : 0) - (a.isPT ? 1 : 0));
 
                 setReceivers(receiversList);
             } catch (err) {
@@ -265,9 +294,14 @@ const Chat = () => {
                                         variants={zoomIn}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-3 h-3 rounded-full ${selectedReceiver?._id === receiver._id ? 'bg-white' : 'bg-blue-500'}`}></div>
+                                            <div className={`w-3 h-3 rounded-full ${selectedReceiver?._id === receiver._id ? 'bg-white' : receiver.isPT ? 'bg-purple-500' : 'bg-blue-500'}`}></div>
                                             <div>
-                                                <span className="block">{receiver.name}</span>
+                                                <span className="block flex items-center gap-1.5">
+                                                    {receiver.name}
+                                                    {receiver.isPT && (
+                                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${selectedReceiver?._id === receiver._id ? 'bg-white/20 text-white' : 'bg-purple-500/20 text-purple-400'}`}>⭐ PT</span>
+                                                    )}
+                                                </span>
                                                 <span className="text-xs opacity-70">({receiver.role})</span>
                                             </div>
                                         </div>
