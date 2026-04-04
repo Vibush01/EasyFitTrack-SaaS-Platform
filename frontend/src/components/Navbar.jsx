@@ -71,8 +71,10 @@ const Navbar = () => {
     // Determine if the user can access the Chat page
     const canAccessChat = () => {
         if (!user) return false;
-        if (user.role === 'gym') return true; // Gym Profiles can always access Chat
-        return (user.role === 'member' || user.role === 'trainer') && userDetails?.gym; // Members and Trainers need to be in a gym
+        if (user.role === 'gym') return true;
+        // Allow all trainers and members — Chat.jsx handles mode detection
+        // (gym chat requires gym, personal DMs require coaching connections)
+        return user.role === 'member' || user.role === 'trainer';
     };
 
     // Animation Variants
