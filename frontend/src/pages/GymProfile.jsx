@@ -240,10 +240,17 @@ const GymProfile = () => {
                                                     Not Hiring Trainers
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
-                                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                                    Hiring Trainers
-                                                </span>
+                                                <div className="flex flex-col gap-2">
+                                                    <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                        Hiring Trainers
+                                                    </span>
+                                                    {gym.salaryRange && (
+                                                        <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                                                            Pays: {gym.salaryRange}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     )}

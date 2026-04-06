@@ -81,7 +81,7 @@ router.get('/browse', async (req, res, next) => {
         const total = await Gym.countDocuments(filter);
         const gyms = await Gym.find(filter)
             .select(
-                'gymName address city primaryImage photos membershipPlans members trainers hiringStatus profileImage',
+                'gymName address city primaryImage photos membershipPlans members trainers hiringStatus salaryRange profileImage',
             )
             .skip(skip)
             .limit(parseInt(limit))
@@ -221,6 +221,7 @@ router.put(
                 membershipPlans,
                 deletePhotos,
                 hiringStatus,
+                salaryRange,
             } = req.body;
 
             if (gymName) gym.gymName = gymName;
@@ -228,6 +229,7 @@ router.put(
             if (city !== undefined) gym.city = city;
             if (hiringStatus && ['hiring', 'not_hiring'].includes(hiringStatus))
                 gym.hiringStatus = hiringStatus;
+            if (salaryRange !== undefined) gym.salaryRange = salaryRange;
             if (ownerName) gym.ownerName = ownerName;
             if (ownerEmail) gym.ownerEmail = ownerEmail;
             if (req.body.primaryImage !== undefined) {
@@ -243,12 +245,10 @@ router.put(
                     gym.membershipPlans = JSON.parse(membershipPlans);
                 } catch (parseError) {
                     logger.error('Error parsing membershipPlans:', parseError);
-                    return res
-                        .status(400)
-                        .json({
-                            message: 'Invalid membershipPlans format',
-                            error: parseError.message,
-                        });
+                    return res.status(400).json({
+                        message: 'Invalid membershipPlans format',
+                        error: parseError.message,
+                    });
                 }
             }
 

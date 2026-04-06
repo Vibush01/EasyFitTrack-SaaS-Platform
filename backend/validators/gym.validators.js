@@ -22,6 +22,7 @@ const gymUpdateValidation = [
         .isEmail()
         .withMessage('Please provide a valid owner email')
         .normalizeEmail(),
+    body('salaryRange').optional().trim().isString().withMessage('Salary range must be a string'),
     body('city')
         .optional()
         .trim()

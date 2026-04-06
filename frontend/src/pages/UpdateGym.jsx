@@ -19,6 +19,7 @@ const UpdateGym = () => {
         photos: [],
         deletePhotos: [],
         primaryImage: '',
+        salaryRange: '',
     });
     const [newMembershipPlan, setNewMembershipPlan] = useState({ duration: '', price: '' });
     const [previewImages, setPreviewImages] = useState([]);
@@ -42,6 +43,7 @@ const UpdateGym = () => {
                     membershipPlans: res.data.membershipPlans || [],
                     photos: res.data.photos || [],
                     primaryImage: res.data.primaryImage || '',
+                    salaryRange: res.data.salaryRange || '',
                     deletePhotos: [],
                 });
                 setPreviewImages(res.data.photos || []);
@@ -128,6 +130,7 @@ const UpdateGym = () => {
             if (formData.ownerEmail) data.append('ownerEmail', formData.ownerEmail);
             if (formData.primaryImage) data.append('primaryImage', formData.primaryImage);
             if (formData.hiringStatus) data.append('hiringStatus', formData.hiringStatus);
+            if (formData.salaryRange) data.append('salaryRange', formData.salaryRange);
 
             const membershipPlans = Array.isArray(formData.membershipPlans) ? formData.membershipPlans : [];
             data.append('membershipPlans', JSON.stringify(membershipPlans));
@@ -318,6 +321,23 @@ const UpdateGym = () => {
                                     </div>
                                 </div>
                                 <p className="text-xs text-[var(--text-secondary)] mt-1">Controls whether trainers can apply to your gym</p>
+                            </motion.div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <motion.div variants={fadeIn}>
+                                <label className="block text-[var(--text-secondary)] font-medium mb-2 text-sm">
+                                    Salary Range (Optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    name="salaryRange"
+                                    value={formData.salaryRange}
+                                    onChange={handleChange}
+                                    placeholder="e.g., Rs 10,000 - Rs 20,000 / month"
+                                    className="w-full p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                                />
+                                <p className="text-xs text-[var(--text-secondary)] mt-1">Displayed to trainers to show expected pay</p>
                             </motion.div>
                         </div>
 

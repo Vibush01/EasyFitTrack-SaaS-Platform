@@ -14,6 +14,7 @@ const gymSchema = new mongoose.Schema({
     role: { type: String, default: 'gym' },
     profileImage: { type: String },
     hiringStatus: { type: String, enum: ['hiring', 'not_hiring'], default: 'hiring' }, // Trainer application gating
+    salaryRange: { type: String, default: '' }, // For trainers to see expected pay
     members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Member' }],
     trainers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Trainer' }],
     membershipPlans: [
