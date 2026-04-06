@@ -10,6 +10,7 @@ const TrainerSignup = () => {
         name: '',
         email: '',
         password: '',
+        contact: '',
         experienceYears: '',
         experienceMonths: '',
     });
@@ -127,6 +128,20 @@ const TrainerSignup = () => {
                                 )}
                             </button>
                         </div>
+                    </motion.div>
+
+                    <motion.div variants={fadeIn}>
+                        <label className="block text-[var(--text-secondary)] font-medium mb-2 text-sm">
+                            Contact
+                        </label>
+                        <input
+                            type="text"
+                            name="contact"
+                            value={formData.contact}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[var(--text-primary)] placeholder-gray-500 transition-all duration-300 text-sm sm:text-base"
+                            required
+                        />
                     </motion.div>
 
                     <div className="grid grid-cols-2 gap-4">

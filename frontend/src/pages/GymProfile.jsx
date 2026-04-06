@@ -15,6 +15,7 @@ const GymProfile = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [membershipDuration, setMembershipDuration] = useState('1 month');
+    const [applicationMessage, setApplicationMessage] = useState('');
 
     useEffect(() => {
         const fetchGym = async () => {
@@ -33,7 +34,13 @@ const GymProfile = () => {
     const handleJoinRequest = async () => {
         try {
             const token = localStorage.getItem('token');
-            const body = user?.role === 'member' ? { membershipDuration } : {};
+            const body = {};
+            if (user?.role === 'member') {
+                body.membershipDuration = membershipDuration;
+            }
+            if (applicationMessage.trim()) {
+                body.message = applicationMessage.trim();
+            }
             await axios.post(`${API_URL}/gym/join/${id}`, body, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -224,39 +231,99 @@ const GymProfile = () => {
                                     variants={fadeIn}
                                     className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 p-6 rounded-xl border border-blue-500/30"
                                 >
-                                    <h3 className="text-xl font-bold mb-4 text-[var(--text-primary)]">Ready to Join?</h3>
-                                    {user.role === 'member' && (
+                                    {/* Hiring Status Badge */}
+                                    {user.role === 'trainer' && (
                                         <div className="mb-4">
-                                            <label className="block text-[var(--text-secondary)] font-medium mb-2 text-sm">
-                                                Select Duration
-                                            </label>
-                                            <div className="relative">
-                                                <select
-                                                    value={membershipDuration}
-                                                    onChange={(e) => setMembershipDuration(e.target.value)}
-                                                    className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-                                                >
-                                                    <option value="1 week">1 Week</option>
-                                                    <option value="1 month">1 Month</option>
-                                                    <option value="3 months">3 Months</option>
-                                                    <option value="6 months">6 Months</option>
-                                                    <option value="1 year">1 Year</option>
-                                                </select>
-                                                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                                                    <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            {gym.hiringStatus === 'not_hiring' ? (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/25">
+                                                    <span className="w-2 h-2 rounded-full bg-red-400" />
+                                                    Not Hiring Trainers
+                                                </span>
+                                            ) : (
+                                                <div className="flex flex-col gap-2">
+                                                    <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                        Hiring Trainers
+                                                    </span>
+                                                    {gym.salaryRange && (
+                                                        <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                                                            Pays: {gym.salaryRange}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
                                     )}
-                                    <motion.button
-                                        onClick={handleJoinRequest}
-                                        whileHover="hover"
-                                        variants={buttonHover}
-                                        whileTap={{ scale: 0.98 }}
-                                        className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all duration-300"
-                                    >
-                                        Send Join Request
-                                    </motion.button>
+
+                                    {/* Not Hiring Block for Trainers */}
+                                    {user.role === 'trainer' && gym.hiringStatus === 'not_hiring' ? (
+                                        <div className="text-center py-4">
+                                            <p className="text-[var(--text-secondary)] text-sm">
+                                                This gym is not currently accepting trainer applications.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <h3 className="text-xl font-bold mb-4 text-[var(--text-primary)]">
+                                                {user.role === 'trainer' ? 'Apply to Join' : 'Ready to Join?'}
+                                            </h3>
+
+                                            {/* Member: Duration Selector */}
+                                            {user.role === 'member' && (
+                                                <div className="mb-4">
+                                                    <label className="block text-[var(--text-secondary)] font-medium mb-2 text-sm">
+                                                        Select Duration
+                                                    </label>
+                                                    <div className="relative">
+                                                        <select
+                                                            value={membershipDuration}
+                                                            onChange={(e) => setMembershipDuration(e.target.value)}
+                                                            className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                                                        >
+                                                            <option value="1 week">1 Week</option>
+                                                            <option value="1 month">1 Month</option>
+                                                            <option value="3 months">3 Months</option>
+                                                            <option value="6 months">6 Months</option>
+                                                            <option value="1 year">1 Year</option>
+                                                        </select>
+                                                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                                            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Trainer: Application Message */}
+                                            {user.role === 'trainer' && (
+                                                <div className="mb-4">
+                                                    <label className="block text-[var(--text-secondary)] font-medium mb-2 text-sm">
+                                                        Application Message <span className="text-gray-500">(optional)</span>
+                                                    </label>
+                                                    <textarea
+                                                        value={applicationMessage}
+                                                        onChange={(e) => setApplicationMessage(e.target.value)}
+                                                        maxLength={500}
+                                                        rows={4}
+                                                        placeholder="Tell the gym about yourself, your experience, and why you'd like to join..."
+                                                        className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                                                    />
+                                                    <p className="text-xs text-[var(--text-secondary)] mt-1 text-right">
+                                                        {applicationMessage.length}/500
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <motion.button
+                                                onClick={handleJoinRequest}
+                                                whileHover="hover"
+                                                variants={buttonHover}
+                                                whileTap={{ scale: 0.98 }}
+                                                className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all duration-300"
+                                            >
+                                                {user.role === 'trainer' ? 'Send Application' : 'Send Join Request'}
+                                            </motion.button>
+                                        </>
+                                    )}
                                 </motion.div>
                             )}
 

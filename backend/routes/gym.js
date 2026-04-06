@@ -6,7 +6,14 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/auth');
 const validate = require('../middleware/validate');
-const { gymUpdateValidation, joinGymValidation, memberIdValidation, trainerIdValidation, requestActionValidation, membershipRequestActionValidation } = require('../validators/gym.validators');
+const {
+    gymUpdateValidation,
+    joinGymValidation,
+    memberIdValidation,
+    trainerIdValidation,
+    requestActionValidation,
+    membershipRequestActionValidation,
+} = require('../validators/gym.validators');
 const paginate = require('../utils/paginate');
 const logger = require('../utils/logger');
 const Gym = require('../models/Gym');
@@ -54,6 +61,57 @@ router.get('/', async (req, res, next) => {
     }
 });
 
+// Browse gyms with search, city filter, and hiring status filter
+router.get('/browse', async (req, res, next) => {
+    try {
+        const { search, city, hiringStatus, page = 1, limit = 20 } = req.query;
+        const filter = {};
+
+        if (search) {
+            filter.gymName = { $regex: search, $options: 'i' };
+        }
+        if (city) {
+            filter.city = { $regex: `^${city}$`, $options: 'i' };
+        }
+        if (hiringStatus && ['hiring', 'not_hiring'].includes(hiringStatus)) {
+            filter.hiringStatus = hiringStatus;
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const total = await Gym.countDocuments(filter);
+        const gyms = await Gym.find(filter)
+            .select(
+                'gymName address city primaryImage photos membershipPlans members trainers hiringStatus salaryRange profileImage',
+            )
+            .skip(skip)
+            .limit(parseInt(limit))
+            .lean();
+
+        // Add counts without exposing full arrays
+        const result = gyms.map((gym) => ({
+            ...gym,
+            memberCount: gym.members?.length || 0,
+            trainerCount: gym.trainers?.length || 0,
+            members: undefined,
+            trainers: undefined,
+        }));
+
+        // Get distinct cities for filter dropdown
+        const cities = await Gym.distinct('city', { city: { $ne: '' } });
+
+        res.json({
+            gyms: result,
+            cities: cities.sort(),
+            total,
+            page: parseInt(page),
+            pages: Math.ceil(total / parseInt(limit)),
+        });
+    } catch (error) {
+        logger.error('Error in GET /browse:', error);
+        next(error);
+    }
+});
+
 // Send join request (Member/Trainer)
 router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (req, res, next) => {
     if (req.user.role !== 'member' && req.user.role !== 'trainer') {
@@ -78,14 +136,18 @@ router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (
             status: 'pending',
         });
         if (existingRequest) {
-            return res.status(400).json({ message: 'You already have a pending request for this gym' });
+            return res
+                .status(400)
+                .json({ message: 'You already have a pending request for this gym' });
         }
 
         let membershipDuration;
         if (req.user.role === 'member') {
             membershipDuration = req.body.membershipDuration;
             if (!membershipDuration) {
-                return res.status(400).json({ message: 'Membership duration is required for members' });
+                return res
+                    .status(400)
+                    .json({ message: 'Membership duration is required for members' });
             }
             const validDurations = ['1 week', '1 month', '3 months', '6 months', '1 year'];
             if (!validDurations.includes(membershipDuration)) {
@@ -93,10 +155,16 @@ router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (
             }
         }
 
+        // Block trainer join if gym is not hiring
+        if (req.user.role === 'trainer' && gym.hiringStatus === 'not_hiring') {
+            return res.status(400).json({ message: 'This gym is not currently hiring trainers' });
+        }
+
         const joinRequestData = {
             user: req.user.id,
             userModel: req.user.role === 'member' ? 'Member' : 'Trainer',
             gym: req.params.gymId,
+            message: req.body.message || '',
         };
 
         if (req.user.role === 'member') {
@@ -127,88 +195,113 @@ router.post('/join/:gymId', authMiddleware, joinGymValidation, validate, async (
 });
 
 // Update gym details (including photo upload/delete)
-router.put('/update', authMiddleware, upload.array('photos', 5), gymUpdateValidation, validate, async (req, res, next) => {
-    if (req.user.role !== 'gym') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    try {
-        const gym = await Gym.findById(req.user.id);
-        if (!gym) {
-            return res.status(404).json({ message: 'Gym not found' });
+router.put(
+    '/update',
+    authMiddleware,
+    upload.array('photos', 5),
+    gymUpdateValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'gym') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        const { gymName, address, ownerName, ownerEmail, membershipPlans, deletePhotos } = req.body;
-
-
-        if (gymName) gym.gymName = gymName;
-        if (address) gym.address = address;
-        if (ownerName) gym.ownerName = ownerName;
-        if (ownerEmail) gym.ownerEmail = ownerEmail;
-        if (req.body.primaryImage !== undefined) {
-            gym.primaryImage = req.body.primaryImage;
-        }
-        if (membershipPlans) {
-            if (typeof membershipPlans !== 'string') {
-                return res.status(400).json({ message: 'membershipPlans must be a JSON string' });
+        try {
+            const gym = await Gym.findById(req.user.id);
+            if (!gym) {
+                return res.status(404).json({ message: 'Gym not found' });
             }
-            try {
-                gym.membershipPlans = JSON.parse(membershipPlans);
-            } catch (parseError) {
-                logger.error('Error parsing membershipPlans:', parseError);
-                return res.status(400).json({ message: 'Invalid membershipPlans format', error: parseError.message });
-            }
-        }
 
-        if (deletePhotos) {
-            const photosToDelete = JSON.parse(deletePhotos);
-            for (const photoUrl of photosToDelete) {
-                const urlParts = photoUrl.split('/');
-                const fileName = urlParts[urlParts.length - 1];
-                const publicId = fileName.split('.')[0];
-                const folderPath = urlParts[urlParts.length - 2];
-                const fullPublicId = `${folderPath}/${publicId}`;
-                await cloudinary.uploader.destroy(fullPublicId);
-                gym.photos = gym.photos.filter((photo) => photo !== photoUrl);
-                if (gym.primaryImage === photoUrl) {
-                    gym.primaryImage = null;
+            const {
+                gymName,
+                address,
+                city,
+                ownerName,
+                ownerEmail,
+                membershipPlans,
+                deletePhotos,
+                hiringStatus,
+                salaryRange,
+            } = req.body;
+
+            if (gymName) gym.gymName = gymName;
+            if (address) gym.address = address;
+            if (city !== undefined) gym.city = city;
+            if (hiringStatus && ['hiring', 'not_hiring'].includes(hiringStatus))
+                gym.hiringStatus = hiringStatus;
+            if (salaryRange !== undefined) gym.salaryRange = salaryRange;
+            if (ownerName) gym.ownerName = ownerName;
+            if (ownerEmail) gym.ownerEmail = ownerEmail;
+            if (req.body.primaryImage !== undefined) {
+                gym.primaryImage = req.body.primaryImage;
+            }
+            if (membershipPlans) {
+                if (typeof membershipPlans !== 'string') {
+                    return res
+                        .status(400)
+                        .json({ message: 'membershipPlans must be a JSON string' });
+                }
+                try {
+                    gym.membershipPlans = JSON.parse(membershipPlans);
+                } catch (parseError) {
+                    logger.error('Error parsing membershipPlans:', parseError);
+                    return res.status(400).json({
+                        message: 'Invalid membershipPlans format',
+                        error: parseError.message,
+                    });
                 }
             }
+
+            if (deletePhotos) {
+                const photosToDelete = JSON.parse(deletePhotos);
+                for (const photoUrl of photosToDelete) {
+                    const urlParts = photoUrl.split('/');
+                    const fileName = urlParts[urlParts.length - 1];
+                    const publicId = fileName.split('.')[0];
+                    const folderPath = urlParts[urlParts.length - 2];
+                    const fullPublicId = `${folderPath}/${publicId}`;
+                    await cloudinary.uploader.destroy(fullPublicId);
+                    gym.photos = gym.photos.filter((photo) => photo !== photoUrl);
+                    if (gym.primaryImage === photoUrl) {
+                        gym.primaryImage = null;
+                    }
+                }
+            }
+
+            if (req.files && req.files.length > 0) {
+                const uploadPromises = req.files.map(
+                    (file) =>
+                        new Promise((resolve, reject) => {
+                            cloudinary.uploader
+                                .upload_stream({ folder: 'gym_photos' }, (error, result) => {
+                                    if (error) reject(error);
+                                    resolve(result.secure_url);
+                                })
+                                .end(file.buffer);
+                        }),
+                );
+                const uploadedPhotos = await Promise.all(uploadPromises);
+                gym.photos.push(...uploadedPhotos);
+            }
+
+            await gym.save();
+
+            const eventLog = new EventLog({
+                event: 'Gym Update',
+                page: '/update-gym',
+                user: req.user.id,
+                userModel: 'Gym',
+                details: `Gym ${gym.gymName} updated details`,
+            });
+            await eventLog.save();
+
+            res.json({ message: 'Gym updated', gym });
+        } catch (error) {
+            logger.error('Error in PUT /update:', error);
+            next(error);
         }
-
-        if (req.files && req.files.length > 0) {
-            const uploadPromises = req.files.map((file) =>
-                new Promise((resolve, reject) => {
-                    cloudinary.uploader.upload_stream(
-                        { folder: 'gym_photos' },
-                        (error, result) => {
-                            if (error) reject(error);
-                            resolve(result.secure_url);
-                        }
-                    ).end(file.buffer);
-                })
-            );
-            const uploadedPhotos = await Promise.all(uploadPromises);
-            gym.photos.push(...uploadedPhotos);
-        }
-
-        await gym.save();
-
-        const eventLog = new EventLog({
-            event: 'Gym Update',
-            page: '/update-gym',
-            user: req.user.id,
-            userModel: 'Gym',
-            details: `Gym ${gym.gymName} updated details`,
-        });
-        await eventLog.save();
-
-        res.json({ message: 'Gym updated', gym });
-    } catch (error) {
-        logger.error('Error in PUT /update:', error);
-        next(error);
-    }
-});
+    },
+);
 
 // Get join requests (Gym and Trainers)
 router.get('/requests', authMiddleware, async (req, res, next) => {
@@ -221,16 +314,24 @@ router.get('/requests', authMiddleware, async (req, res, next) => {
         if (req.user.role === 'gym') {
             gym = await Gym.findById(req.user.id).populate({
                 path: 'joinRequests',
-                populate: { path: 'user', select: 'name email' },
+                populate: {
+                    path: 'user',
+                    select: 'name email profileImage experienceYears experienceMonths',
+                },
             });
         } else {
             const trainer = await Trainer.findById(req.user.id);
             if (!trainer || !trainer.gym) {
-                return res.status(404).json({ message: 'Trainer not found or not associated with a gym' });
+                return res
+                    .status(404)
+                    .json({ message: 'Trainer not found or not associated with a gym' });
             }
             gym = await Gym.findById(trainer.gym).populate({
                 path: 'joinRequests',
-                populate: { path: 'user', select: 'name email' },
+                populate: {
+                    path: 'user',
+                    select: 'name email profileImage experienceYears experienceMonths',
+                },
             });
         }
 
@@ -345,7 +446,6 @@ router.get('/trainers', authMiddleware, async (req, res, next) => {
             return res.status(404).json({ message: 'Gym not found' });
         }
 
-
         const trainers = gym.trainers || [];
 
         res.json(trainers);
@@ -356,96 +456,108 @@ router.get('/trainers', authMiddleware, async (req, res, next) => {
 });
 
 // Remove a member from the gym (Gym only)
-router.delete('/members/:memberId', authMiddleware, memberIdValidation, validate, async (req, res, next) => {
-    if (req.user.role !== 'gym') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    try {
-        const gym = await Gym.findById(req.user.id);
-        if (!gym) {
-            return res.status(404).json({ message: 'Gym not found' });
+router.delete(
+    '/members/:memberId',
+    authMiddleware,
+    memberIdValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'gym') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        const member = await Member.findById(req.params.memberId);
-        if (!member || member.gym.toString() !== gym._id.toString()) {
-            return res.status(404).json({ message: 'Member not found or not in this gym' });
+        try {
+            const gym = await Gym.findById(req.user.id);
+            if (!gym) {
+                return res.status(404).json({ message: 'Gym not found' });
+            }
+
+            const member = await Member.findById(req.params.memberId);
+            if (!member || member.gym.toString() !== gym._id.toString()) {
+                return res.status(404).json({ message: 'Member not found or not in this gym' });
+            }
+
+            // Remove member from gym
+            gym.members = gym.members.filter((id) => id.toString() !== req.params.memberId);
+            await gym.save();
+
+            // Clear gym and membership from member
+            member.gym = undefined;
+            member.membership = undefined;
+            await member.save();
+
+            // Remove any pending membership requests for this member
+            await MembershipRequest.deleteMany({
+                member: req.params.memberId,
+                gym: gym._id,
+                status: 'pending',
+            });
+
+            // Log the member removal event
+            const eventLog = new EventLog({
+                event: 'Member Removed',
+                page: '/membership-management',
+                user: req.user.id,
+                userModel: 'Gym',
+                details: `Gym removed member ${member.name}`,
+            });
+            await eventLog.save();
+
+            res.json({ message: 'Member removed successfully' });
+        } catch (error) {
+            logger.error('Error in DELETE /members/:memberId:', error);
+            next(error);
         }
-
-        // Remove member from gym
-        gym.members = gym.members.filter((id) => id.toString() !== req.params.memberId);
-        await gym.save();
-
-        // Clear gym and membership from member
-        member.gym = undefined;
-        member.membership = undefined;
-        await member.save();
-
-        // Remove any pending membership requests for this member
-        await MembershipRequest.deleteMany({
-            member: req.params.memberId,
-            gym: gym._id,
-            status: 'pending',
-        });
-
-        // Log the member removal event
-        const eventLog = new EventLog({
-            event: 'Member Removed',
-            page: '/membership-management',
-            user: req.user.id,
-            userModel: 'Gym',
-            details: `Gym removed member ${member.name}`,
-        });
-        await eventLog.save();
-
-        res.json({ message: 'Member removed successfully' });
-    } catch (error) {
-        logger.error('Error in DELETE /members/:memberId:', error);
-        next(error);
-    }
-});
+    },
+);
 
 // // Remove a trainer from the gym (Gym only)
-router.delete('/trainers/:trainerId', authMiddleware, trainerIdValidation, validate, async (req, res, next) => {
-    if (req.user.role !== 'gym') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    try {
-        const gym = await Gym.findById(req.user.id);
-        if (!gym) {
-            return res.status(404).json({ message: 'Gym not found' });
+router.delete(
+    '/trainers/:trainerId',
+    authMiddleware,
+    trainerIdValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'gym') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        const trainer = await Trainer.findById(req.params.trainerId);
-        if (!trainer || trainer.gym.toString() !== gym._id.toString()) {
-            return res.status(404).json({ message: 'Trainer not found or not in this gym' });
+        try {
+            const gym = await Gym.findById(req.user.id);
+            if (!gym) {
+                return res.status(404).json({ message: 'Gym not found' });
+            }
+
+            const trainer = await Trainer.findById(req.params.trainerId);
+            if (!trainer || trainer.gym.toString() !== gym._id.toString()) {
+                return res.status(404).json({ message: 'Trainer not found or not in this gym' });
+            }
+
+            // Remove trainer from gym
+            gym.trainers = gym.trainers.filter((id) => id.toString() !== req.params.trainerId);
+            await gym.save();
+
+            // Clear gym from trainer
+            trainer.gym = undefined;
+            await trainer.save();
+
+            // Log the trainer removal event
+            const eventLog = new EventLog({
+                event: 'Trainer Removed',
+                page: '/membership-management',
+                user: req.user.id,
+                userModel: 'Gym',
+                details: `Gym removed trainer ${trainer.name}`,
+            });
+            await eventLog.save();
+
+            res.json({ message: 'Trainer removed successfully' });
+        } catch (error) {
+            logger.error('Error in DELETE /trainers/:trainerId:', error);
+            next(error);
         }
-
-        // Remove trainer from gym
-        gym.trainers = gym.trainers.filter((id) => id.toString() !== req.params.trainerId);
-        await gym.save();
-
-        // Clear gym from trainer
-        trainer.gym = undefined;
-        await trainer.save();
-
-        // Log the trainer removal event
-        const eventLog = new EventLog({
-            event: 'Trainer Removed',
-            page: '/membership-management',
-            user: req.user.id,
-            userModel: 'Gym',
-            details: `Gym removed trainer ${trainer.name}`,
-        });
-        await eventLog.save();
-
-        res.json({ message: 'Trainer removed successfully' });
-    } catch (error) {
-        logger.error('Error in DELETE /trainers/:trainerId:', error);
-        next(error);
-    }
-});
+    },
+);
 
 // Get members for membership management (Gym and Trainers)
 router.get('/members', authMiddleware, async (req, res, next) => {
@@ -536,7 +648,6 @@ router.get('/membership-requests', authMiddleware, async (req, res, next) => {
             return res.status(404).json({ message: 'Gym not found' });
         }
 
-
         const membershipRequests = await MembershipRequest.find({ gym: gym._id })
             .populate({
                 path: 'member',
@@ -600,45 +711,205 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Accept join request (Gym and Trainers)
-router.post('/requests/:requestId/accept', authMiddleware, requestActionValidation, validate, async (req, res, next) => {
-    if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    try {
-        const joinRequest = await JoinRequest.findById(req.params.requestId).populate('user');
-        if (!joinRequest || joinRequest.status !== 'pending') {
-            return res.status(404).json({ message: 'Request not found or already processed' });
+router.post(
+    '/requests/:requestId/accept',
+    authMiddleware,
+    requestActionValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        let gym;
-        if (req.user.role === 'gym') {
-            gym = await Gym.findById(req.user.id);
-        } else {
-            const trainer = await Trainer.findById(req.user.id);
-            if (!trainer || !trainer.gym) {
-                return res.status(404).json({ message: 'Trainer not found or not associated with a gym' });
+        try {
+            const joinRequest = await JoinRequest.findById(req.params.requestId).populate('user');
+            if (!joinRequest || joinRequest.status !== 'pending') {
+                return res.status(404).json({ message: 'Request not found or already processed' });
             }
-            gym = await Gym.findById(trainer.gym);
-            // Trainers can only accept Member requests
-            if (joinRequest.userModel !== 'Member') {
-                return res.status(403).json({ message: 'Trainers can only manage Member join requests' });
+
+            let gym;
+            if (req.user.role === 'gym') {
+                gym = await Gym.findById(req.user.id);
+            } else {
+                const trainer = await Trainer.findById(req.user.id);
+                if (!trainer || !trainer.gym) {
+                    return res
+                        .status(404)
+                        .json({ message: 'Trainer not found or not associated with a gym' });
+                }
+                gym = await Gym.findById(trainer.gym);
+                // Trainers can only accept Member requests
+                if (joinRequest.userModel !== 'Member') {
+                    return res
+                        .status(403)
+                        .json({ message: 'Trainers can only manage Member join requests' });
+                }
             }
+
+            if (joinRequest.gym.toString() !== gym._id.toString()) {
+                return res.status(403).json({ message: 'Request does not belong to this gym' });
+            }
+
+            joinRequest.status = 'accepted';
+            await joinRequest.save();
+
+            const userModel = joinRequest.userModel === 'Member' ? Member : Trainer;
+            const user = await userModel.findById(joinRequest.user._id);
+            user.gym = gym._id;
+
+            if (joinRequest.userModel === 'Member') {
+                const duration = joinRequest.membershipDuration;
+                const startDate = new Date();
+                let endDate;
+                switch (duration) {
+                    case '1 week':
+                        endDate = new Date(startDate.setDate(startDate.getDate() + 7));
+                        break;
+                    case '1 month':
+                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 1));
+                        break;
+                    case '3 months':
+                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 3));
+                        break;
+                    case '6 months':
+                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 6));
+                        break;
+                    case '1 year':
+                        endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
+                        break;
+                }
+                user.membership = { duration, startDate: new Date(), endDate };
+                gym.members.push(user._id);
+            } else {
+                gym.trainers.push(user._id);
+            }
+
+            await user.save();
+            await gym.save();
+
+            // Log the join request acceptance event
+            const eventLog = new EventLog({
+                event: 'Join Request Accepted',
+                page: '/gym-dashboard',
+                user: req.user.id,
+                userModel: req.user.role === 'gym' ? 'Gym' : 'Trainer',
+                details: `${req.user.role === 'gym' ? 'Gym' : 'Trainer'} accepted join request from ${joinRequest.userModel} ${joinRequest.user.name}`,
+            });
+            await eventLog.save();
+
+            res.json({ message: 'Request accepted' });
+        } catch (error) {
+            logger.error('Error in POST /requests/:requestId/accept:', error);
+            next(error);
+        }
+    },
+);
+
+// Deny join request (Gym and Trainers)
+router.post(
+    '/requests/:requestId/deny',
+    authMiddleware,
+    requestActionValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        if (joinRequest.gym.toString() !== gym._id.toString()) {
-            return res.status(403).json({ message: 'Request does not belong to this gym' });
+        try {
+            const joinRequest = await JoinRequest.findById(req.params.requestId);
+            if (!joinRequest || joinRequest.status !== 'pending') {
+                return res.status(404).json({ message: 'Request not found or already processed' });
+            }
+
+            let gym;
+            if (req.user.role === 'gym') {
+                gym = await Gym.findById(req.user.id);
+            } else {
+                const trainer = await Trainer.findById(req.user.id);
+                if (!trainer || !trainer.gym) {
+                    return res
+                        .status(404)
+                        .json({ message: 'Trainer not found or not associated with a gym' });
+                }
+                gym = await Gym.findById(trainer.gym);
+                if (joinRequest.userModel !== 'Member') {
+                    return res
+                        .status(403)
+                        .json({ message: 'Trainers can only manage Member join requests' });
+                }
+            }
+
+            if (joinRequest.gym.toString() !== gym._id.toString()) {
+                return res.status(403).json({ message: 'Request does not belong to this gym' });
+            }
+
+            joinRequest.status = 'denied';
+            await joinRequest.save();
+
+            // Log the join request denial event
+            const eventLog = new EventLog({
+                event: 'Join Request Denied',
+                page: '/gym-dashboard',
+                user: req.user.id,
+                userModel: req.user.role === 'gym' ? 'Gym' : 'Trainer',
+                details: `${req.user.role === 'gym' ? 'Gym' : 'Trainer'} denied join request from ${joinRequest.userModel}`,
+            });
+            await eventLog.save();
+
+            res.json({ message: 'Request denied' });
+        } catch (error) {
+            logger.error('Error in POST /requests/:requestId/deny:', error);
+            next(error);
+        }
+    },
+);
+
+// Update membership (Gym and Trainers)
+router.put(
+    '/members/:memberId/membership',
+    authMiddleware,
+    memberIdValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        joinRequest.status = 'accepted';
-        await joinRequest.save();
+        const { duration } = req.body;
 
-        const userModel = joinRequest.userModel === 'Member' ? Member : Trainer;
-        const user = await userModel.findById(joinRequest.user._id);
-        user.gym = gym._id;
+        if (!duration) {
+            return res.status(400).json({ message: 'Duration is required' });
+        }
 
-        if (joinRequest.userModel === 'Member') {
-            const duration = joinRequest.membershipDuration;
+        const validDurations = ['1 week', '1 month', '3 months', '6 months', '1 year'];
+        if (!validDurations.includes(duration)) {
+            return res.status(400).json({ message: 'Invalid membership duration' });
+        }
+
+        try {
+            let gym;
+            if (req.user.role === 'gym') {
+                gym = await Gym.findById(req.user.id);
+            } else {
+                const trainer = await Trainer.findById(req.user.id);
+                if (!trainer || !trainer.gym) {
+                    return res
+                        .status(404)
+                        .json({ message: 'Trainer not found or not associated with a gym' });
+                }
+                gym = await Gym.findById(trainer.gym);
+            }
+
+            if (!gym) {
+                return res.status(404).json({ message: 'Gym not found' });
+            }
+
+            const member = await Member.findById(req.params.memberId);
+            if (!member || member.gym.toString() !== gym._id.toString()) {
+                return res.status(404).json({ message: 'Member not found or not in this gym' });
+            }
+
             const startDate = new Date();
             let endDate;
             switch (duration) {
@@ -658,260 +929,138 @@ router.post('/requests/:requestId/accept', authMiddleware, requestActionValidati
                     endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
                     break;
             }
-            user.membership = { duration, startDate: new Date(), endDate };
-            gym.members.push(user._id);
-        } else {
-            gym.trainers.push(user._id);
-        }
 
-        await user.save();
-        await gym.save();
+            member.membership = { duration, startDate: new Date(), endDate };
+            await member.save();
 
-        // Log the join request acceptance event
-        const eventLog = new EventLog({
-            event: 'Join Request Accepted',
-            page: '/gym-dashboard',
-            user: req.user.id,
-            userModel: req.user.role === 'gym' ? 'Gym' : 'Trainer',
-            details: `${req.user.role === 'gym' ? 'Gym' : 'Trainer'} accepted join request from ${joinRequest.userModel} ${joinRequest.user.name}`,
-        });
-        await eventLog.save();
-
-        res.json({ message: 'Request accepted' });
-    } catch (error) {
-        logger.error('Error in POST /requests/:requestId/accept:', error);
-        next(error);
-    }
-});
-
-// Deny join request (Gym and Trainers)
-router.post('/requests/:requestId/deny', authMiddleware, requestActionValidation, validate, async (req, res, next) => {
-    if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    try {
-        const joinRequest = await JoinRequest.findById(req.params.requestId);
-        if (!joinRequest || joinRequest.status !== 'pending') {
-            return res.status(404).json({ message: 'Request not found or already processed' });
-        }
-
-        let gym;
-        if (req.user.role === 'gym') {
-            gym = await Gym.findById(req.user.id);
-        } else {
-            const trainer = await Trainer.findById(req.user.id);
-            if (!trainer || !trainer.gym) {
-                return res.status(404).json({ message: 'Trainer not found or not associated with a gym' });
+            // If this update is in response to a membership request, update the request status
+            const membershipRequest = await MembershipRequest.findOne({
+                member: member._id,
+                gym: gym._id,
+                status: 'pending',
+                requestedDuration: duration,
+            });
+            if (membershipRequest) {
+                membershipRequest.status = 'approved';
+                await membershipRequest.save();
             }
-            gym = await Gym.findById(trainer.gym);
-            if (joinRequest.userModel !== 'Member') {
-                return res.status(403).json({ message: 'Trainers can only manage Member join requests' });
-            }
+
+            // Log the membership update event
+            const eventLog = new EventLog({
+                event: 'Membership Update',
+                page: '/membership-management',
+                user: req.user.id,
+                userModel: req.user.role === 'gym' ? 'Gym' : 'Trainer',
+                details: `${req.user.role === 'gym' ? 'Gym' : 'Trainer'} updated membership for member ${member.name} to ${duration}`,
+            });
+            await eventLog.save();
+
+            res.json({ message: 'Membership updated', member });
+        } catch (error) {
+            logger.error('Error in PUT /members/:memberId/membership:', error);
+            next(error);
         }
-
-        if (joinRequest.gym.toString() !== gym._id.toString()) {
-            return res.status(403).json({ message: 'Request does not belong to this gym' });
-        }
-
-        joinRequest.status = 'denied';
-        await joinRequest.save();
-
-        // Log the join request denial event
-        const eventLog = new EventLog({
-            event: 'Join Request Denied',
-            page: '/gym-dashboard',
-            user: req.user.id,
-            userModel: req.user.role === 'gym' ? 'Gym' : 'Trainer',
-            details: `${req.user.role === 'gym' ? 'Gym' : 'Trainer'} denied join request from ${joinRequest.userModel}`,
-        });
-        await eventLog.save();
-
-        res.json({ message: 'Request denied' });
-    } catch (error) {
-        logger.error('Error in POST /requests/:requestId/deny:', error);
-        next(error);
-    }
-});
-
-// Update membership (Gym and Trainers)
-router.put('/members/:memberId/membership', authMiddleware, memberIdValidation, validate, async (req, res, next) => {
-    if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const { duration } = req.body;
-
-    if (!duration) {
-        return res.status(400).json({ message: 'Duration is required' });
-    }
-
-    const validDurations = ['1 week', '1 month', '3 months', '6 months', '1 year'];
-    if (!validDurations.includes(duration)) {
-        return res.status(400).json({ message: 'Invalid membership duration' });
-    }
-
-    try {
-        let gym;
-        if (req.user.role === 'gym') {
-            gym = await Gym.findById(req.user.id);
-        } else {
-            const trainer = await Trainer.findById(req.user.id);
-            if (!trainer || !trainer.gym) {
-                return res.status(404).json({ message: 'Trainer not found or not associated with a gym' });
-            }
-            gym = await Gym.findById(trainer.gym);
-        }
-
-        if (!gym) {
-            return res.status(404).json({ message: 'Gym not found' });
-        }
-
-        const member = await Member.findById(req.params.memberId);
-        if (!member || member.gym.toString() !== gym._id.toString()) {
-            return res.status(404).json({ message: 'Member not found or not in this gym' });
-        }
-
-        const startDate = new Date();
-        let endDate;
-        switch (duration) {
-            case '1 week':
-                endDate = new Date(startDate.setDate(startDate.getDate() + 7));
-                break;
-            case '1 month':
-                endDate = new Date(startDate.setMonth(startDate.getMonth() + 1));
-                break;
-            case '3 months':
-                endDate = new Date(startDate.setMonth(startDate.getMonth() + 3));
-                break;
-            case '6 months':
-                endDate = new Date(startDate.setMonth(startDate.getMonth() + 6));
-                break;
-            case '1 year':
-                endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
-                break;
-        }
-
-        member.membership = { duration, startDate: new Date(), endDate };
-        await member.save();
-
-        // If this update is in response to a membership request, update the request status
-        const membershipRequest = await MembershipRequest.findOne({
-            member: member._id,
-            gym: gym._id,
-            status: 'pending',
-            requestedDuration: duration,
-        });
-        if (membershipRequest) {
-            membershipRequest.status = 'approved';
-            await membershipRequest.save();
-        }
-
-        // Log the membership update event
-        const eventLog = new EventLog({
-            event: 'Membership Update',
-            page: '/membership-management',
-            user: req.user.id,
-            userModel: req.user.role === 'gym' ? 'Gym' : 'Trainer',
-            details: `${req.user.role === 'gym' ? 'Gym' : 'Trainer'} updated membership for member ${member.name} to ${duration}`,
-        });
-        await eventLog.save();
-
-        res.json({ message: 'Membership updated', member });
-    } catch (error) {
-        logger.error('Error in PUT /members/:memberId/membership:', error);
-        next(error);
-    }
-});
+    },
+);
 
 // Approve or deny membership request (Gym and Trainers)
-router.post('/membership-requests/:requestId/action', authMiddleware, membershipRequestActionValidation, validate, async (req, res, next) => {
-    if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
+router.post(
+    '/membership-requests/:requestId/action',
+    authMiddleware,
+    membershipRequestActionValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'gym' && req.user.role !== 'trainer') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
 
-    const { action } = req.body;
+        const { action } = req.body;
 
-    if (!action || !['approve', 'deny'].includes(action)) {
-        return res.status(400).json({ message: 'Action (approve or deny) is required' });
-    }
+        if (!action || !['approve', 'deny'].includes(action)) {
+            return res.status(400).json({ message: 'Action (approve or deny) is required' });
+        }
 
-    try {
-        let gym;
-        if (req.user.role === 'gym') {
-            gym = await Gym.findById(req.user.id);
-        } else {
-            const trainer = await Trainer.findById(req.user.id);
-            if (!trainer || !trainer.gym) {
-                return res.status(404).json({ message: 'Trainer not found or not associated with a gym' });
+        try {
+            let gym;
+            if (req.user.role === 'gym') {
+                gym = await Gym.findById(req.user.id);
+            } else {
+                const trainer = await Trainer.findById(req.user.id);
+                if (!trainer || !trainer.gym) {
+                    return res
+                        .status(404)
+                        .json({ message: 'Trainer not found or not associated with a gym' });
+                }
+                gym = await Gym.findById(trainer.gym);
             }
-            gym = await Gym.findById(trainer.gym);
-        }
 
-        if (!gym) {
-            return res.status(404).json({ message: 'Gym not found' });
-        }
-
-        const membershipRequest = await MembershipRequest.findById(req.params.requestId).populate('member');
-        if (!membershipRequest) {
-            return res.status(404).json({ message: 'Membership request not found' });
-        }
-
-        if (membershipRequest.gym.toString() !== gym._id.toString()) {
-            return res.status(403).json({ message: 'Request does not belong to this gym' });
-        }
-
-        if (membershipRequest.status !== 'pending') {
-            return res.status(400).json({ message: 'Request has already been processed' });
-        }
-
-        membershipRequest.status = action === 'approve' ? 'approved' : 'denied';
-        await membershipRequest.save();
-
-        if (action === 'approve') {
-            const member = await Member.findById(membershipRequest.member._id);
-            const startDate = new Date();
-            let endDate;
-            switch (membershipRequest.requestedDuration) {
-                case '1 week':
-                    endDate = new Date(startDate.setDate(startDate.getDate() + 7));
-                    break;
-                case '1 month':
-                    endDate = new Date(startDate.setMonth(startDate.getMonth() + 1));
-                    break;
-                case '3 months':
-                    endDate = new Date(startDate.setMonth(startDate.getMonth() + 3));
-                    break;
-                case '6 months':
-                    endDate = new Date(startDate.setMonth(startDate.getMonth() + 6));
-                    break;
-                case '1 year':
-                    endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
-                    break;
+            if (!gym) {
+                return res.status(404).json({ message: 'Gym not found' });
             }
-            member.membership = {
-                duration: membershipRequest.requestedDuration,
-                startDate: new Date(),
-                endDate,
-            };
-            await member.save();
+
+            const membershipRequest = await MembershipRequest.findById(
+                req.params.requestId,
+            ).populate('member');
+            if (!membershipRequest) {
+                return res.status(404).json({ message: 'Membership request not found' });
+            }
+
+            if (membershipRequest.gym.toString() !== gym._id.toString()) {
+                return res.status(403).json({ message: 'Request does not belong to this gym' });
+            }
+
+            if (membershipRequest.status !== 'pending') {
+                return res.status(400).json({ message: 'Request has already been processed' });
+            }
+
+            membershipRequest.status = action === 'approve' ? 'approved' : 'denied';
+            await membershipRequest.save();
+
+            if (action === 'approve') {
+                const member = await Member.findById(membershipRequest.member._id);
+                const startDate = new Date();
+                let endDate;
+                switch (membershipRequest.requestedDuration) {
+                    case '1 week':
+                        endDate = new Date(startDate.setDate(startDate.getDate() + 7));
+                        break;
+                    case '1 month':
+                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 1));
+                        break;
+                    case '3 months':
+                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 3));
+                        break;
+                    case '6 months':
+                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 6));
+                        break;
+                    case '1 year':
+                        endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
+                        break;
+                }
+                member.membership = {
+                    duration: membershipRequest.requestedDuration,
+                    startDate: new Date(),
+                    endDate,
+                };
+                await member.save();
+            }
+
+            // Log the membership request action event
+            const eventLog = new EventLog({
+                event: `Membership Request ${action === 'approve' ? 'Approved' : 'Denied'}`,
+                page: '/membership-management',
+                user: req.user.id,
+                userModel: req.user.role === 'gym' ? 'Gym' : 'Trainer',
+                details: `${req.user.role === 'gym' ? 'Gym' : 'Trainer'} ${action === 'approve' ? 'approved' : 'denied'} membership request for member ${membershipRequest.member.name}`,
+            });
+            await eventLog.save();
+
+            res.json({ message: `Membership request ${action}d`, membershipRequest });
+        } catch (error) {
+            logger.error('Error in POST /membership-requests/:requestId/action:', error);
+            next(error);
         }
-
-        // Log the membership request action event
-        const eventLog = new EventLog({
-            event: `Membership Request ${action === 'approve' ? 'Approved' : 'Denied'}`,
-            page: '/membership-management',
-            user: req.user.id,
-            userModel: req.user.role === 'gym' ? 'Gym' : 'Trainer',
-            details: `${req.user.role === 'gym' ? 'Gym' : 'Trainer'} ${action === 'approve' ? 'approved' : 'denied'} membership request for member ${membershipRequest.member.name}`,
-        });
-        await eventLog.save();
-
-        res.json({ message: `Membership request ${action}d`, membershipRequest });
-    } catch (error) {
-        logger.error('Error in POST /membership-requests/:requestId/action:', error);
-        next(error);
-    }
-});
+    },
+);
 
 module.exports = router;
