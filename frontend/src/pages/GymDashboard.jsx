@@ -320,45 +320,91 @@ const GymDashboard = () => {
                                 {requests.map((request) => (
                                     <motion.li
                                         key={request._id}
-                                        className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-6 rounded-xl hover:border-blue-500/50 transition-all duration-300 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                                        className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-5 sm:p-6 rounded-xl hover:border-blue-500/50 transition-all duration-300"
                                         initial="hidden"
                                         whileInView="visible"
                                         viewport={{ once: true }}
                                         variants={zoomIn}
                                     >
-                                        <div>
-                                            <p className="text-[var(--text-primary)] font-bold text-lg mb-1">
-                                                {request.user.name}
-                                            </p>
-                                            <p className="text-[var(--text-secondary)] text-sm mb-2">
-                                                {request.user.email} • {request.userModel}
-                                            </p>
-                                            {request.userModel === 'Member' && (
-                                                <p className="text-blue-400 text-sm font-medium mb-1">
-                                                    Duration: {request.membershipDuration}
-                                                </p>
-                                            )}
-                                            <p className="text-[var(--text-secondary)] text-xs">
-                                                Requested: {new Date(request.createdAt).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-3 w-full sm:w-auto">
-                                            <motion.button
-                                                onClick={() => handleAccept(request._id)}
-                                                whileHover="hover"
-                                                variants={buttonHover}
-                                                className="flex-1 sm:flex-none px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-bold shadow-lg shadow-green-600/20"
-                                            >
-                                                Accept
-                                            </motion.button>
-                                            <motion.button
-                                                onClick={() => handleDeny(request._id)}
-                                                whileHover="hover"
-                                                variants={buttonHover}
-                                                className="flex-1 sm:flex-none px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300 font-bold shadow-lg shadow-red-600/20"
-                                            >
-                                                Deny
-                                            </motion.button>
+                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                                            {/* Left: User Info */}
+                                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                {/* Profile Image */}
+                                                <div className="flex-shrink-0">
+                                                    {request.user.profileImage ? (
+                                                        <img
+                                                            src={request.user.profileImage}
+                                                            alt={request.user.name}
+                                                            className="w-12 h-12 rounded-full object-cover border-2 border-[var(--border-color)]"
+                                                        />
+                                                    ) : (
+                                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${request.userModel === 'Trainer' ? 'bg-purple-600' : 'bg-blue-600'}`}>
+                                                            {request.user.name?.charAt(0) || '?'}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                        <p className="text-[var(--text-primary)] font-bold text-base sm:text-lg">
+                                                            {request.user.name}
+                                                        </p>
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${request.userModel === 'Trainer' ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25' : 'bg-blue-500/15 text-blue-400 border border-blue-500/25'}`}>
+                                                            {request.userModel}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[var(--text-secondary)] text-sm mb-1">
+                                                        {request.user.email}
+                                                    </p>
+
+                                                    {/* Trainer Experience */}
+                                                    {request.userModel === 'Trainer' && (request.user.experienceYears || request.user.experienceMonths) && (
+                                                        <p className="text-purple-400 text-xs font-medium mb-1">
+                                                            💪 {request.user.experienceYears || 0}y {request.user.experienceMonths || 0}m experience
+                                                        </p>
+                                                    )}
+
+                                                    {/* Member Duration */}
+                                                    {request.userModel === 'Member' && request.membershipDuration && (
+                                                        <p className="text-blue-400 text-xs font-medium mb-1">
+                                                            📅 Duration: {request.membershipDuration}
+                                                        </p>
+                                                    )}
+
+                                                    {/* Application Message */}
+                                                    {request.message && request.message.trim() && (
+                                                        <div className="mt-2 bg-[var(--bg-primary)] border-l-3 border-blue-500 rounded-lg p-3" style={{ borderLeftWidth: '3px', borderLeftColor: request.userModel === 'Trainer' ? '#a855f7' : '#3b82f6' }}>
+                                                            <p className="text-[var(--text-secondary)] text-xs italic leading-relaxed">
+                                                                "{request.message}"
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    <p className="text-[var(--text-secondary)] text-xs mt-2">
+                                                        Requested: {new Date(request.createdAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Right: Action Buttons */}
+                                            <div className="flex gap-3 w-full sm:w-auto flex-shrink-0">
+                                                <motion.button
+                                                    onClick={() => handleAccept(request._id)}
+                                                    whileHover="hover"
+                                                    variants={buttonHover}
+                                                    className="flex-1 sm:flex-none px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-bold shadow-lg shadow-green-600/20"
+                                                >
+                                                    Accept
+                                                </motion.button>
+                                                <motion.button
+                                                    onClick={() => handleDeny(request._id)}
+                                                    whileHover="hover"
+                                                    variants={buttonHover}
+                                                    className="flex-1 sm:flex-none px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300 font-bold shadow-lg shadow-red-600/20"
+                                                >
+                                                    Deny
+                                                </motion.button>
+                                            </div>
                                         </div>
                                     </motion.li>
                                 ))}

@@ -11,8 +11,10 @@ const UpdateGym = () => {
     const [formData, setFormData] = useState({
         gymName: '',
         address: '',
+        city: '',
         ownerName: '',
         ownerEmail: '',
+        hiringStatus: 'hiring',
         membershipPlans: [],
         photos: [],
         deletePhotos: [],
@@ -33,8 +35,10 @@ const UpdateGym = () => {
                 setFormData({
                     gymName: res.data.gymName || '',
                     address: res.data.address || '',
+                    city: res.data.city || '',
                     ownerName: res.data.ownerName || '',
                     ownerEmail: res.data.ownerEmail || '',
+                    hiringStatus: res.data.hiringStatus || 'hiring',
                     membershipPlans: res.data.membershipPlans || [],
                     photos: res.data.photos || [],
                     primaryImage: res.data.primaryImage || '',
@@ -119,9 +123,11 @@ const UpdateGym = () => {
             const data = new FormData();
             if (formData.gymName) data.append('gymName', formData.gymName);
             if (formData.address) data.append('address', formData.address);
+            data.append('city', formData.city || '');
             if (formData.ownerName) data.append('ownerName', formData.ownerName);
             if (formData.ownerEmail) data.append('ownerEmail', formData.ownerEmail);
             if (formData.primaryImage) data.append('primaryImage', formData.primaryImage);
+            if (formData.hiringStatus) data.append('hiringStatus', formData.hiringStatus);
 
             const membershipPlans = Array.isArray(formData.membershipPlans) ? formData.membershipPlans : [];
             data.append('membershipPlans', JSON.stringify(membershipPlans));
@@ -274,6 +280,44 @@ const UpdateGym = () => {
                                     onChange={handleChange}
                                     className="w-full p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                                 />
+                            </motion.div>
+                        </div>
+
+                        {/* City & Hiring Status */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <motion.div variants={fadeIn}>
+                                <label className="block text-[var(--text-secondary)] font-medium mb-2 text-sm">
+                                    City
+                                </label>
+                                <input
+                                    type="text"
+                                    name="city"
+                                    value={formData.city}
+                                    onChange={handleChange}
+                                    placeholder="e.g., Mumbai, Delhi, Baddi"
+                                    className="w-full p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                                />
+                                <p className="text-xs text-[var(--text-secondary)] mt-1">Used for location-based discovery</p>
+                            </motion.div>
+                            <motion.div variants={fadeIn}>
+                                <label className="block text-[var(--text-secondary)] font-medium mb-2 text-sm">
+                                    Hiring Status
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        name="hiringStatus"
+                                        value={formData.hiringStatus}
+                                        onChange={handleChange}
+                                        className="w-full p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer transition-all duration-300"
+                                    >
+                                        <option value="hiring">🟢 Hiring Trainers</option>
+                                        <option value="not_hiring">🔴 Not Hiring</option>
+                                    </select>
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                                        <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-[var(--text-secondary)] mt-1">Controls whether trainers can apply to your gym</p>
                             </motion.div>
                         </div>
 
