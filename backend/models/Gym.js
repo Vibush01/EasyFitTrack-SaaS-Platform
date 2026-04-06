@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const gymSchema = new mongoose.Schema({
     gymName: { type: String, required: true },
     address: { type: String, required: true },
+    city: { type: String, default: '' }, // For location-based filtering
     photos: [{ type: String }], // Cloudinary URLs
     primaryImage: { type: String }, // URL of the primary image
     ownerName: { type: String, required: true },
@@ -12,13 +13,19 @@ const gymSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: { type: String, default: 'gym' },
     profileImage: { type: String },
-    members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Member' }], // List of member IDs
-    trainers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Trainer' }], // List of trainer IDs
-    membershipPlans: [{
-        duration: { type: String, enum: ['1 week', '1 month', '3 months', '6 months', '1 year'] },
-        price: { type: Number },
-    }],
-    joinRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'JoinRequest' }], // Pending requests
+    hiringStatus: { type: String, enum: ['hiring', 'not_hiring'], default: 'hiring' }, // Trainer application gating
+    members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Member' }],
+    trainers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Trainer' }],
+    membershipPlans: [
+        {
+            duration: {
+                type: String,
+                enum: ['1 week', '1 month', '3 months', '6 months', '1 year'],
+            },
+            price: { type: Number },
+        },
+    ],
+    joinRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'JoinRequest' }],
 });
 
 gymSchema.pre('save', async function (next) {
