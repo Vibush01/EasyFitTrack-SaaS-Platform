@@ -14,6 +14,71 @@ const LIFT_META = [
     { key: 'ohp',      label: 'OHP',      emoji: '🙌', color: '#10b981' },
 ];
 
+// ── Strength PR Card (self-contained) ────────────────────────
+const StrengthPRCard = () => {
+    const [prs, setPrs] = useState({});
+    const [loaded, setLoaded] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/member/1rm`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                setPrs(res.data.prs || {});
+            } catch { /* silent */ }
+            finally { setLoaded(true); }
+        })();
+    }, []);
+
+    if (!loaded) return null;
+
+    const hasAnyPR = LIFT_META.some(l => prs[l.key]);
+    if (!hasAnyPR) return null; // Don't show if no 1RM data ever logged
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="mb-6"
+        >
+            <Link to="/progress-tracker" className="block">
+                <div className="bg-[var(--bg-card)]/80 backdrop-blur-md rounded-2xl border border-[var(--border-color)] p-5 hover:border-indigo-500/30 transition-all duration-300 group">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-[var(--text-primary)] font-bold text-sm flex items-center gap-2">
+                            <span className="bg-indigo-600 w-1 h-5 rounded-full" />
+                            Strength PRs
+                        </h3>
+                        <span className="text-xs text-indigo-400 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                            Track Strength →
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                        {LIFT_META.map(lift => {
+                            const pr = prs[lift.key];
+                            return (
+                                <div key={lift.key} className="text-center">
+                                    <p className="text-lg">{lift.emoji}</p>
+                                    <p className="text-xs text-[var(--text-secondary)] font-semibold mt-0.5">{lift.label}</p>
+                                    {pr ? (
+                                        <p className="text-base font-bold mt-0.5 tabular-nums" style={{ color: lift.color }}>
+                                            {pr.weight1RM}<span className="text-xs font-medium text-[var(--text-secondary)]"> kg</span>
+                                        </p>
+                                    ) : (
+                                        <p className="text-sm text-[var(--text-secondary)] mt-0.5">—</p>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </Link>
+        </motion.div>
+    );
+};
+
 // ── Diet Plan Card ───────────────────────────────────────────
 const TodayDietCard = () => {
     const [dietData, setDietData] = useState(null);
