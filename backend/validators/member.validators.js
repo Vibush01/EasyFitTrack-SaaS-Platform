@@ -92,6 +92,39 @@ const scheduleValidation = [
         }),
 ];
 
+const dietScheduleValidation = [
+    body('schedule')
+        .notEmpty()
+        .withMessage('Schedule is required')
+        .isObject()
+        .withMessage('Schedule must be an object'),
+];
+
+const feedbackReplyValidation = [
+    body('comment')
+        .trim()
+        .notEmpty()
+        .withMessage('Reply is required')
+        .isLength({ max: 300 })
+        .withMessage('Reply must be at most 300 characters'),
+    body('targetType')
+        .trim()
+        .notEmpty()
+        .withMessage('Target type is required')
+        .isIn(['workout_log', 'macro_log'])
+        .withMessage('Target type must be workout_log or macro_log'),
+    body('targetId')
+        .notEmpty()
+        .withMessage('Target ID is required')
+        .isMongoId()
+        .withMessage('Invalid target ID'),
+    body('trainerId')
+        .notEmpty()
+        .withMessage('Trainer ID is required')
+        .isMongoId()
+        .withMessage('Invalid trainer ID'),
+];
+
 module.exports = {
     macroLogValidation,
     macroIdValidation,
@@ -101,4 +134,6 @@ module.exports = {
     workoutLogValidation,
     workoutLogIdValidation,
     scheduleValidation,
+    dietScheduleValidation,
+    feedbackReplyValidation,
 };

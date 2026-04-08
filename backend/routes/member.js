@@ -12,6 +12,8 @@ const {
     workoutLogValidation,
     workoutLogIdValidation,
     scheduleValidation,
+    dietScheduleValidation,
+    feedbackReplyValidation,
 } = require('../validators/member.validators');
 const paginate = require('../utils/paginate');
 const Member = require('../models/Member');
@@ -25,6 +27,9 @@ const WorkoutSession = require('../models/WorkoutSession');
 const WorkoutPlan = require('../models/WorkoutPlan');
 const CustomWorkout = require('../models/CustomWorkout');
 const DailyLog = require('../models/DailyLog');
+const MemberDietSchedule = require('../models/MemberDietSchedule');
+const TrainerComment = require('../models/TrainerComment');
+const Trainer = require('../models/Trainer');
 const cloudinary = require('cloudinary').v2;
 
 // Configure Multer for file uploads
@@ -1444,5 +1449,194 @@ router.delete('/daily-logs/:id', authMiddleware, async (req, res, next) => {
         next(err);
     }
 });
+
+// ─── Diet Schedule (Member Weekly Meal Planner) ──────────────
+
+// GET /member/diet-schedule — get the member's weekly diet schedule
+router.get('/diet-schedule', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const schedule = await MemberDietSchedule.findOne({ member: req.user.id }).lean();
+        res.json(schedule || { member: req.user.id, schedule: {
+            monday: [], tuesday: [], wednesday: [], thursday: [],
+            friday: [], saturday: [], sunday: [],
+        }});
+    } catch (error) {
+        next(error);
+    }
+});
+
+// PUT /member/diet-schedule — create or update the weekly diet schedule
+router.put(
+    '/diet-schedule',
+    authMiddleware,
+    dietScheduleValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'member') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        try {
+            const { schedule } = req.body;
+            const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+            // Validate structure
+            for (const day of validDays) {
+                if (schedule[day] && !Array.isArray(schedule[day])) {
+                    return res.status(400).json({ message: `${day} must be an array of meals` });
+                }
+                if (schedule[day]) {
+                    for (const meal of schedule[day]) {
+                        if (!meal.mealName || meal.calories == null || meal.protein == null ||
+                            meal.carbs == null || meal.fats == null) {
+                            return res.status(400).json({
+                                message: `Each meal in ${day} must have mealName, calories, protein, carbs, fats`,
+                            });
+                        }
+                    }
+                }
+            }
+
+            const updated = await MemberDietSchedule.findOneAndUpdate(
+                { member: req.user.id },
+                { member: req.user.id, schedule },
+                { new: true, upsert: true },
+            ).lean();
+
+            res.json({ message: 'Diet schedule saved', dietSchedule: updated });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
+
+// GET /member/diet-schedule/today — get today's planned meals
+router.get('/diet-schedule/today', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const schedule = await MemberDietSchedule.findOne({ member: req.user.id }).lean();
+        if (!schedule) {
+            return res.json({ plannedMeals: [], todayMacroLogs: [] });
+        }
+
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const today = new Date();
+        const dayName = dayNames[today.getDay()];
+        const plannedMeals = schedule.schedule[dayName] || [];
+
+        // Get today's macro logs for comparison
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+
+        const todayMacroLogs = await MacroLog.find({
+            member: req.user.id,
+            date: { $gte: todayStart, $lte: todayEnd },
+        })
+            .sort({ date: -1 })
+            .lean();
+
+        // Calculate totals
+        const totalPlanned = plannedMeals.reduce(
+            (acc, meal) => ({
+                calories: acc.calories + (meal.calories || 0),
+                protein: acc.protein + (meal.protein || 0),
+                carbs: acc.carbs + (meal.carbs || 0),
+                fats: acc.fats + (meal.fats || 0),
+            }),
+            { calories: 0, protein: 0, carbs: 0, fats: 0 },
+        );
+
+        const totalLogged = todayMacroLogs.reduce(
+            (acc, log) => ({
+                calories: acc.calories + (log.macros?.calories || 0),
+                protein: acc.protein + (log.macros?.protein || 0),
+                carbs: acc.carbs + (log.macros?.carbs || 0),
+                fats: acc.fats + (log.macros?.fats || 0),
+            }),
+            { calories: 0, protein: 0, carbs: 0, fats: 0 },
+        );
+
+        res.json({
+            dayName,
+            plannedMeals,
+            todayMacroLogs,
+            totalPlanned,
+            totalLogged,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Trainer Feedback (Member View) ──────────────────────────
+
+// GET /member/trainer-feedback — get all trainer comments for the member
+router.get('/trainer-feedback', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const comments = await TrainerComment.find({ member: req.user.id })
+            .populate('author', 'name profileImage')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        res.json(comments);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// POST /member/trainer-feedback/reply — member replies to a trainer comment
+router.post(
+    '/trainer-feedback/reply',
+    authMiddleware,
+    feedbackReplyValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'member') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        try {
+            const { comment, targetType, targetId, trainerId, parentId } = req.body;
+
+            // Verify the trainer exists
+            const trainer = await Trainer.findById(trainerId).lean();
+            if (!trainer) {
+                return res.status(404).json({ message: 'Trainer not found' });
+            }
+
+            const newComment = await TrainerComment.create({
+                author: req.user.id,
+                authorModel: 'Member',
+                member: req.user.id,
+                trainer: trainerId,
+                targetType,
+                targetId,
+                parentId: parentId || null,
+                comment,
+            });
+
+            const populated = await TrainerComment.findById(newComment._id)
+                .populate('author', 'name profileImage')
+                .lean();
+
+            res.status(201).json(populated);
+        } catch (error) {
+            next(error);
+        }
+    },
+);
 
 module.exports = router;

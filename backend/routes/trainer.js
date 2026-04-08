@@ -17,6 +17,8 @@ const {
     bookSessionValidation,
     coachingRequestValidation,
     coachingRequestActionValidation,
+    trainerCommentValidation,
+    memberIdParamValidation,
 } = require('../validators/trainer.validators');
 const paginate = require('../utils/paginate');
 const WorkoutPlan = require('../models/WorkoutPlan');
@@ -28,6 +30,10 @@ const Trainer = require('../models/Trainer');
 const Member = require('../models/Member');
 const Gym = require('../models/Gym');
 const CoachingRequest = require('../models/CoachingRequest');
+const TrainerComment = require('../models/TrainerComment');
+const WorkoutLog = require('../models/WorkoutLog');
+const MacroLog = require('../models/MacroLog');
+const MemberDietSchedule = require('../models/MemberDietSchedule');
 
 // ─── Trainer Discovery ──────────────────────────────────────────
 // GET /trainer/browse — public list of trainers for members to discover
@@ -1137,5 +1143,325 @@ router.get('/coaching-requests/member', authMiddleware, async (req, res, next) =
         next(error);
     }
 });
+
+// ─── Client Dashboard & Feedback ─────────────────────────────
+
+// GET /trainer/clients/stats — enriched client roster with activity indicators
+router.get('/clients/stats', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'trainer') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const trainer = await Trainer.findById(req.user.id)
+            .populate('personalClients', 'name email profileImage contact')
+            .lean();
+
+        if (!trainer) {
+            return res.status(404).json({ message: 'Trainer not found' });
+        }
+
+        // Gym clients
+        let gymClients = [];
+        if (trainer.gym) {
+            const gym = await Gym.findById(trainer.gym)
+                .populate('members', 'name email profileImage contact')
+                .lean();
+            gymClients = gym?.members || [];
+        }
+
+        // Enrich each client with stats
+        const enrichClient = async (client, type) => {
+            const memberId = client._id;
+
+            // Last workout date
+            const lastWorkout = await WorkoutLog.findOne({ member: memberId })
+                .sort({ date: -1 })
+                .select('date')
+                .lean();
+
+            // Diet adherence (last 7 days) — compare logged days vs scheduled days
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+            sevenDaysAgo.setUTCHours(0, 0, 0, 0);
+
+            const macroLogs = await MacroLog.find({
+                member: memberId,
+                date: { $gte: sevenDaysAgo },
+            })
+                .select('date')
+                .lean();
+
+            // Get unique days with macro logs
+            const loggedDays = new Set(
+                macroLogs.map((l) => new Date(l.date).toISOString().split('T')[0]),
+            );
+
+            // Check if member has a diet schedule
+            const dietSchedule = await MemberDietSchedule.findOne({ member: memberId })
+                .select('schedule')
+                .lean();
+
+            let dietAdherence = 0;
+            if (dietSchedule) {
+                const dayNames = [
+                    'sunday',
+                    'monday',
+                    'tuesday',
+                    'wednesday',
+                    'thursday',
+                    'friday',
+                    'saturday',
+                ];
+                let plannedDays = 0;
+                let adherentDays = 0;
+
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date();
+                    d.setUTCDate(d.getUTCDate() - i);
+                    d.setUTCHours(0, 0, 0, 0);
+                    const dayName = dayNames[d.getUTCDay()];
+                    const dayStr = d.toISOString().split('T')[0];
+
+                    if (
+                        dietSchedule.schedule[dayName] &&
+                        dietSchedule.schedule[dayName].length > 0
+                    ) {
+                        plannedDays++;
+                        if (loggedDays.has(dayStr)) {
+                            adherentDays++;
+                        }
+                    }
+                }
+
+                dietAdherence = plannedDays > 0 ? Math.round((adherentDays / plannedDays) * 100) : 0;
+            } else {
+                // No schedule — use simple "days logged / 7"
+                dietAdherence = Math.round((loggedDays.size / 7) * 100);
+            }
+
+            // Active plans count
+            const activeWorkoutPlans = await WorkoutPlan.countDocuments({
+                trainer: req.user.id,
+                member: memberId,
+            });
+            const activeDietPlans = await DietPlan.countDocuments({
+                trainer: req.user.id,
+                member: memberId,
+            });
+
+            return {
+                ...client,
+                type,
+                lastWorkoutDate: lastWorkout?.date || null,
+                dietAdherence,
+                activeWorkoutPlans,
+                activeDietPlans,
+            };
+        };
+
+        const enrichedGym = await Promise.all(gymClients.map((c) => enrichClient(c, 'gym')));
+        const enrichedPersonal = await Promise.all(
+            (trainer.personalClients || []).map((c) => enrichClient(c, 'personal')),
+        );
+
+        res.json({
+            gymClients: enrichedGym,
+            personalClients: enrichedPersonal,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// GET /trainer/clients/:memberId/activity — client's recent workout & macro logs
+router.get(
+    '/clients/:memberId/activity',
+    authMiddleware,
+    memberIdParamValidation,
+    async (req, res, next) => {
+        if (req.user.role !== 'trainer') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        try {
+            const { memberId } = req.params;
+
+            // Verify the trainer has access to this member (gym or personal)
+            const trainer = await Trainer.findById(req.user.id).lean();
+            if (!trainer) {
+                return res.status(404).json({ message: 'Trainer not found' });
+            }
+
+            let isClient = false;
+            if (trainer.personalClients?.map((id) => id.toString()).includes(memberId)) {
+                isClient = true;
+            }
+            if (!isClient && trainer.gym) {
+                const gym = await Gym.findById(trainer.gym).select('members').lean();
+                if (gym?.members?.map((id) => id.toString()).includes(memberId)) {
+                    isClient = true;
+                }
+            }
+
+            if (!isClient) {
+                return res.status(403).json({ message: 'This member is not your client' });
+            }
+
+            // Fetch member info
+            const member = await Member.findById(memberId)
+                .select('name email profileImage contact')
+                .lean();
+
+            if (!member) {
+                return res.status(404).json({ message: 'Member not found' });
+            }
+
+            // Last 7 days of workout logs
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+            sevenDaysAgo.setUTCHours(0, 0, 0, 0);
+
+            const workoutLogs = await WorkoutLog.find({
+                member: memberId,
+                date: { $gte: sevenDaysAgo },
+            })
+                .sort({ date: -1 })
+                .lean();
+
+            // Last 7 days of macro logs
+            const macroLogs = await MacroLog.find({
+                member: memberId,
+                date: { $gte: sevenDaysAgo },
+            })
+                .sort({ date: -1 })
+                .lean();
+
+            // Comments for this member by this trainer
+            const comments = await TrainerComment.find({
+                member: memberId,
+                trainer: req.user.id,
+            })
+                .populate('author', 'name profileImage')
+                .sort({ createdAt: 1 })
+                .lean();
+
+            res.json({
+                member,
+                workoutLogs,
+                macroLogs,
+                comments,
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
+
+// POST /trainer/comments — create a comment on a log entry
+router.post(
+    '/comments',
+    authMiddleware,
+    trainerCommentValidation,
+    async (req, res, next) => {
+        if (req.user.role !== 'trainer' && req.user.role !== 'member') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        try {
+            const { comment, targetType, targetId, memberId, parentId } = req.body;
+
+            // Determine author role
+            const authorModel = req.user.role === 'trainer' ? 'Trainer' : 'Member';
+            let trainerId, memberIdFinal;
+
+            if (req.user.role === 'trainer') {
+                trainerId = req.user.id;
+                memberIdFinal = memberId;
+
+                if (!memberIdFinal) {
+                    return res.status(400).json({ message: 'memberId is required' });
+                }
+
+                // Verify the trainer has access to this member
+                const trainer = await Trainer.findById(req.user.id).lean();
+                let isClient = false;
+                if (trainer.personalClients?.map((id) => id.toString()).includes(memberIdFinal)) {
+                    isClient = true;
+                }
+                if (!isClient && trainer.gym) {
+                    const gym = await Gym.findById(trainer.gym).select('members').lean();
+                    if (gym?.members?.map((id) => id.toString()).includes(memberIdFinal)) {
+                        isClient = true;
+                    }
+                }
+                if (!isClient) {
+                    return res.status(403).json({ message: 'This member is not your client' });
+                }
+            } else {
+                // Member creating a reply — trainerId must come from body
+                memberIdFinal = req.user.id;
+                trainerId = req.body.trainerId;
+                if (!trainerId) {
+                    return res.status(400).json({ message: 'trainerId is required for member replies' });
+                }
+            }
+
+            const newComment = await TrainerComment.create({
+                author: req.user.id,
+                authorModel,
+                member: memberIdFinal,
+                trainer: trainerId,
+                targetType,
+                targetId,
+                parentId: parentId || null,
+                comment,
+            });
+
+            const populated = await TrainerComment.findById(newComment._id)
+                .populate('author', 'name profileImage')
+                .lean();
+
+            res.status(201).json(populated);
+        } catch (error) {
+            next(error);
+        }
+    },
+);
+
+// GET /trainer/comments/:memberId — get all comment threads for a specific member
+router.get(
+    '/comments/:memberId',
+    authMiddleware,
+    memberIdParamValidation,
+    async (req, res, next) => {
+        if (req.user.role !== 'trainer' && req.user.role !== 'member') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        try {
+            const { memberId } = req.params;
+
+            // Verify access
+            if (req.user.role === 'member' && req.user.id !== memberId) {
+                return res.status(403).json({ message: 'Access denied' });
+            }
+
+            const filter = { member: memberId };
+            if (req.user.role === 'trainer') {
+                filter.trainer = req.user.id;
+            }
+
+            const comments = await TrainerComment.find(filter)
+                .populate('author', 'name profileImage')
+                .sort({ createdAt: 1 })
+                .lean();
+
+            res.json(comments);
+        } catch (error) {
+            next(error);
+        }
+    },
+);
 
 module.exports = router;
