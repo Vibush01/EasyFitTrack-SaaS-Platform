@@ -83,6 +83,133 @@ const TodayDietCard = () => {
     );
 };
 
+// ── Trainer Feedback Card ──────────────────────────────────────
+const TrainerFeedbackCard = () => {
+    const [threads, setThreads] = useState([]);
+    const [loaded, setLoaded] = useState(false);
+    const [replyText, setReplyText] = useState({});
+    const [submittingId, setSubmittingId] = useState(null);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/member/trainer-feedback`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                // only take the 2 most recent threads that have unread/recent activity
+                setThreads((res.data || []).slice(0, 2));
+            } catch { /* silent */ }
+            finally { setLoaded(true); }
+        })();
+    }, []);
+
+    const handleReply = async (threadId, parentId) => {
+        const text = replyText[threadId];
+        if (!text || !text.trim()) return;
+
+        try {
+            setSubmittingId(threadId);
+            const token = localStorage.getItem('token');
+            const res = await axios.post(`${API_URL}/member/trainer-feedback/reply`, {
+                threadId,
+                parentId,
+                comment: text
+            }, { headers: { Authorization: `Bearer ${token}` } });
+            
+            // Assume success and optimistically show success message or just clear it
+            toast.success("Reply sent to trainer", { position: "bottom-right" });
+            setReplyText(prev => ({ ...prev, [threadId]: '' }));
+            
+            // Ideally we re-fetch to show the new node
+            const updated = await axios.get(`${API_URL}/member/trainer-feedback`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setThreads((updated.data || []).slice(0, 2));
+
+        } catch (err) {
+            toast.error("Failed to send reply");
+        } finally {
+            setSubmittingId(null);
+        }
+    };
+
+    if (!loaded || threads.length === 0) return null;
+
+    // Helper to find the latest comment in the thread which isn't from the member themselves
+    const getLatestTrainerComment = (nodes) => {
+        const trainerNodes = nodes.filter(n => n.authorModel === 'Trainer');
+        if (trainerNodes.length === 0) return nodes[0];
+        return trainerNodes.reduce((latest, current) => new Date(latest.createdAt) > new Date(current.createdAt) ? latest : current);
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="mb-6"
+        >
+            <div className="bg-[var(--bg-card)]/80 backdrop-blur-md rounded-2xl border border-[var(--border-color)] p-5 hover:border-blue-500/30 transition-all duration-300">
+                <div className="flex items-center gap-2 mb-4">
+                    <span className="bg-blue-600 w-1 h-5 rounded-full" />
+                    <h3 className="text-[var(--text-primary)] font-bold text-sm">Trainer Feedback</h3>
+                </div>
+
+                <div className="space-y-4">
+                    {threads.map((thread) => {
+                        const targetLabel = thread.targetType === 'workout_log' ? 'Workout Log' : 'Diet Log';
+                        const targetColor = thread.targetType === 'workout_log' ? 'text-indigo-400 bg-indigo-500/10' : 'text-orange-400 bg-orange-500/10';
+                        
+                        // We will just show the latest message from the trainer in this thread snippet
+                        const latestMessage = getLatestTrainerComment(thread.nodes);
+                        
+                        return (
+                            <div key={thread._id} className="bg-[var(--bg-secondary)]/60 border border-[var(--border-color)] rounded-xl p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${targetColor}`}>
+                                        {targetLabel}
+                                    </span>
+                                    <span className="text-[10px] text-[var(--text-secondary)]">
+                                        {new Date(latestMessage.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric'})}
+                                    </span>
+                                </div>
+                                
+                                <div className="flex gap-3 mb-3">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500/20 text-blue-500 font-bold flex items-center justify-center rounded-full border border-blue-500/30">
+                                        {latestMessage.author?.name?.charAt(0) || 'T'}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-[var(--text-primary)] mb-0.5">{latestMessage.author?.name} <span className="text-[10px] font-normal text-[var(--text-secondary)] ml-1">Trainer</span></p>
+                                        <p className="text-sm text-[var(--text-secondary)] line-clamp-2">{latestMessage.comment}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 items-center mt-2 pt-2 border-t border-[var(--border-color)]">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Reply inline..." 
+                                        value={replyText[thread._id] || ''}
+                                        onChange={(e) => setReplyText(prev => ({ ...prev, [thread._id]: e.target.value }))}
+                                        className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500/50 text-[var(--text-primary)] transition-colors"
+                                    />
+                                    <button 
+                                        onClick={() => handleReply(thread._id, latestMessage._id)}
+                                        disabled={submittingId === thread._id || !replyText[thread._id]?.trim()}
+                                        className="text-xs bg-blue-500/10 text-blue-500 font-bold px-3 py-1.5 rounded-lg hover:bg-blue-500/20 disabled:opacity-50 transition-colors"
+                                    >
+                                        Reply
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
 const MemberDashboard = () => {
     const { user, userDetails } = useContext(AuthContext);
     const [error, setError] = useState('');
@@ -152,6 +279,9 @@ const MemberDashboard = () => {
                 
                 {/* Today's Diet Card */}
                 <TodayDietCard />
+
+                {/* Trainer Feedback Card */}
+                <TrainerFeedbackCard />
 
                 {/* Quick Links */}
                 <motion.div
