@@ -19,6 +19,7 @@ import Chat from './pages/Chat';
 import Announcements from './pages/Announcements';
 import WorkoutPlans from './pages/WorkoutPlans';
 import ClientRoster from './pages/ClientRoster';
+import ClientActivity from './pages/ClientActivity';
 import FindTrainer from './pages/FindTrainer';
 import MemberDashboard from './pages/MemberDashboard';
 import RequestPlan from './pages/RequestPlan';
@@ -88,6 +89,11 @@ function App() {
                             <Route path="/client-roster" element={
                                 <ProtectedRoute>
                                     <ClientRoster />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/client-activity/:memberId" element={
+                                <ProtectedRoute>
+                                    <ClientActivity />
                                 </ProtectedRoute>
                             } />
                             <Route path="/find-trainer" element={
