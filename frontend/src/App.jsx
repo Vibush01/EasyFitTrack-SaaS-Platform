@@ -22,6 +22,7 @@ import ClientRoster from './pages/ClientRoster';
 import ClientActivity from './pages/ClientActivity';
 import FindTrainer from './pages/FindTrainer';
 import MemberDashboard from './pages/MemberDashboard';
+import DietSchedule from './pages/DietSchedule';
 import RequestPlan from './pages/RequestPlan';
 import MyWorkouts from './pages/MyWorkouts';
 import TodayWorkout from './pages/TodayWorkout';
@@ -104,6 +105,11 @@ function App() {
                             <Route path="/member-dashboard" element={
                                 <ProtectedRoute>
                                     <MemberDashboard />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/diet-schedule" element={
+                                <ProtectedRoute>
+                                    <DietSchedule />
                                 </ProtectedRoute>
                             } />
                             <Route path="/request-plan" element={

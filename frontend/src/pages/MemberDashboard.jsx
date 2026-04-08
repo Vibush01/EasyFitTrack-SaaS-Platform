@@ -14,65 +14,69 @@ const LIFT_META = [
     { key: 'ohp',      label: 'OHP',      emoji: '🙌', color: '#10b981' },
 ];
 
-// ── Strength PR Card (self-contained) ────────────────────────
-const StrengthPRCard = () => {
-    const [prs, setPrs] = useState({});
+// ── Diet Plan Card ───────────────────────────────────────────
+const TodayDietCard = () => {
+    const [dietData, setDietData] = useState(null);
     const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
         (async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await axios.get(`${API_URL}/member/1rm`, {
+                const res = await axios.get(`${API_URL}/member/diet-schedule/today`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setPrs(res.data.prs || {});
+                setDietData(res.data);
             } catch { /* silent */ }
             finally { setLoaded(true); }
         })();
     }, []);
 
     if (!loaded) return null;
+    
+    // Only show if there are planned meals or if they've logged something today
+    const hasData = dietData && (dietData.plannedMeals?.length > 0 || dietData.todayMacroLogs?.length > 0);
+    if (!hasData) return null;
 
-    const hasAnyPR = LIFT_META.some(l => prs[l.key]);
-    if (!hasAnyPR) return null; // Don't show if no 1RM data ever logged
+    const plannedCals = dietData?.totalPlanned?.calories || 0;
+    const loggedCals = dietData?.totalLogged?.calories || 0;
+    const calPercent = plannedCals > 0 ? Math.min(Math.round((loggedCals / plannedCals) * 100), 100) : 0;
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.15 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
             className="mb-6"
         >
-            <Link to="/progress-tracker" className="block">
-                <div className="bg-[var(--bg-card)]/80 backdrop-blur-md rounded-2xl border border-[var(--border-color)] p-5 hover:border-indigo-500/30 transition-all duration-300 group">
+            <Link to="/diet-schedule" className="block">
+                <div className="bg-[var(--bg-card)]/80 backdrop-blur-md rounded-2xl border border-[var(--border-color)] p-5 hover:border-emerald-500/30 transition-all duration-300 group">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-[var(--text-primary)] font-bold text-sm flex items-center gap-2">
-                            <span className="bg-indigo-600 w-1 h-5 rounded-full" />
-                            Strength PRs
+                            <span className="bg-emerald-600 w-1 h-5 rounded-full" />
+                            Today's Diet Plan
                         </h3>
-                        <span className="text-xs text-indigo-400 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-                            Track Strength →
+                        <span className="text-xs text-emerald-500 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                            Manage Schedule →
                         </span>
                     </div>
-                    <div className="grid grid-cols-4 gap-3">
-                        {LIFT_META.map(lift => {
-                            const pr = prs[lift.key];
-                            return (
-                                <div key={lift.key} className="text-center">
-                                    <p className="text-lg">{lift.emoji}</p>
-                                    <p className="text-xs text-[var(--text-secondary)] font-semibold mt-0.5">{lift.label}</p>
-                                    {pr ? (
-                                        <p className="text-base font-bold mt-0.5 tabular-nums" style={{ color: lift.color }}>
-                                            {pr.weight1RM}<span className="text-xs font-medium text-[var(--text-secondary)]"> kg</span>
-                                        </p>
-                                    ) : (
-                                        <p className="text-sm text-[var(--text-secondary)] mt-0.5">—</p>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+
+                    {dietData.plannedMeals?.length > 0 ? (
+                        <>
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs text-[var(--text-secondary)] font-medium">Calories</span>
+                                <span className="text-xs font-bold text-[var(--text-primary)]">{loggedCals} / {plannedCals} kcal</span>
+                            </div>
+                            <div className="w-full bg-[var(--bg-secondary)] rounded-full h-2 mb-4 overflow-hidden border border-[var(--border-color)]">
+                                <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${calPercent}%` }}></div>
+                            </div>
+                            <p className="text-sm font-medium text-[var(--text-primary)]">
+                                {dietData.plannedMeals.length} planned {dietData.plannedMeals.length === 1 ? 'meal' : 'meals'} today 
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-sm text-[var(--text-secondary)]">No meals planned for today, but you have logged foods.</p>
+                    )}
                 </div>
             </Link>
         </motion.div>
@@ -145,6 +149,10 @@ const MemberDashboard = () => {
 
                 {/* Strength PR Card */}
                 <StrengthPRCard />
+                
+                {/* Today's Diet Card */}
+                <TodayDietCard />
+
                 {/* Quick Links */}
                 <motion.div
                     initial="hidden"
@@ -233,12 +241,31 @@ const MemberDashboard = () => {
                             </Link>
                         </motion.div>
 
+                        {/* Diet Schedule quick-link */}
+                        <motion.div whileHover="hover" variants={buttonHover} className="">
+                            <Link
+                                to="/diet-schedule"
+                                className="flex items-center gap-4 bg-gradient-to-r from-emerald-600/10 to-teal-600/5 border border-emerald-500/20 text-[var(--text-primary)] px-6 py-4 rounded-2xl hover:border-emerald-500/40 hover:bg-emerald-600/10 transition-all duration-300 group h-full"
+                            >
+                                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                                    <span className="text-xl">🥗</span>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-sm">Diet Schedule</p>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Plan your weekly meals</p>
+                                </div>
+                                <svg className="w-4 h-4 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </Link>
+                        </motion.div>
+
                         {/* My Templates quick-link */}
-                        <motion.div whileHover="hover" variants={buttonHover} className="sm:col-span-2">
+                        <motion.div whileHover="hover" variants={buttonHover} className="">
                             <Link
                                 to="/my-workouts"
                                 id="my-workouts-link"
-                                className="flex items-center gap-4 bg-gradient-to-r from-purple-600/10 to-pink-600/5 border border-purple-500/20 text-[var(--text-primary)] px-6 py-4 rounded-2xl hover:border-purple-500/40 hover:bg-purple-600/10 transition-all duration-300 group"
+                                className="flex items-center gap-4 bg-gradient-to-r from-purple-600/10 to-pink-600/5 border border-purple-500/20 text-[var(--text-primary)] px-6 py-4 rounded-2xl hover:border-purple-500/40 hover:bg-purple-600/10 transition-all duration-300 group h-full"
                             >
                                 <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center shadow-md shadow-purple-600/20 group-hover:scale-110 transition-transform">
                                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,8 +273,8 @@ const MemberDashboard = () => {
                                     </svg>
                                 </div>
                                 <div className="flex-1">
-                                    <p className="font-bold text-sm">My Workout Templates</p>
-                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Create &amp; manage reusable workout plans</p>
+                                    <p className="font-bold text-sm">Workout Templates</p>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Manage custom plans</p>
                                 </div>
                                 <svg className="w-4 h-4 text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
