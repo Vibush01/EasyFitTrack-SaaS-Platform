@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
+const membershipGuard = require('../middleware/membershipGuard');
 const validate = require('../middleware/validate');
 const {
     workoutPlanValidation,
@@ -570,6 +571,7 @@ router.get('/member/schedules', authMiddleware, async (req, res, next) => {
 router.post(
     '/plan-requests',
     authMiddleware,
+    membershipGuard,
     planRequestValidation,
     validate,
     async (req, res, next) => {
@@ -832,6 +834,7 @@ router.get('/member/available-schedules', authMiddleware, async (req, res, next)
 router.post(
     '/book-session/:scheduleId',
     authMiddleware,
+    membershipGuard,
     bookSessionValidation,
     validate,
     async (req, res, next) => {
@@ -948,6 +951,7 @@ router.put('/gym/update', authMiddleware, async (req, res, next) => {
 router.post(
     '/coaching-requests',
     authMiddleware,
+    membershipGuard,
     coachingRequestValidation,
     validate,
     async (req, res, next) => {

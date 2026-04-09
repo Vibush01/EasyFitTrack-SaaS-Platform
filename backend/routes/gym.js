@@ -760,25 +760,25 @@ router.post(
             if (joinRequest.userModel === 'Member') {
                 const duration = joinRequest.membershipDuration;
                 const startDate = new Date();
-                let endDate;
+                const endDate = new Date(startDate);
                 switch (duration) {
                     case '1 week':
-                        endDate = new Date(startDate.setDate(startDate.getDate() + 7));
+                        endDate.setDate(endDate.getDate() + 7);
                         break;
                     case '1 month':
-                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 1));
+                        endDate.setMonth(endDate.getMonth() + 1);
                         break;
                     case '3 months':
-                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 3));
+                        endDate.setMonth(endDate.getMonth() + 3);
                         break;
                     case '6 months':
-                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 6));
+                        endDate.setMonth(endDate.getMonth() + 6);
                         break;
                     case '1 year':
-                        endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
+                        endDate.setFullYear(endDate.getFullYear() + 1);
                         break;
                 }
-                user.membership = { duration, startDate: new Date(), endDate };
+                user.membership = { duration, startDate, endDate };
                 gym.members.push(user._id);
             } else {
                 gym.trainers.push(user._id);
@@ -911,26 +911,26 @@ router.put(
             }
 
             const startDate = new Date();
-            let endDate;
+            const endDate = new Date(startDate);
             switch (duration) {
                 case '1 week':
-                    endDate = new Date(startDate.setDate(startDate.getDate() + 7));
+                    endDate.setDate(endDate.getDate() + 7);
                     break;
                 case '1 month':
-                    endDate = new Date(startDate.setMonth(startDate.getMonth() + 1));
+                    endDate.setMonth(endDate.getMonth() + 1);
                     break;
                 case '3 months':
-                    endDate = new Date(startDate.setMonth(startDate.getMonth() + 3));
+                    endDate.setMonth(endDate.getMonth() + 3);
                     break;
                 case '6 months':
-                    endDate = new Date(startDate.setMonth(startDate.getMonth() + 6));
+                    endDate.setMonth(endDate.getMonth() + 6);
                     break;
                 case '1 year':
-                    endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
+                    endDate.setFullYear(endDate.getFullYear() + 1);
                     break;
             }
 
-            member.membership = { duration, startDate: new Date(), endDate };
+            member.membership = { duration, startDate, endDate };
             await member.save();
 
             // If this update is in response to a membership request, update the request status
@@ -1019,27 +1019,27 @@ router.post(
             if (action === 'approve') {
                 const member = await Member.findById(membershipRequest.member._id);
                 const startDate = new Date();
-                let endDate;
+                const endDate = new Date(startDate);
                 switch (membershipRequest.requestedDuration) {
                     case '1 week':
-                        endDate = new Date(startDate.setDate(startDate.getDate() + 7));
+                        endDate.setDate(endDate.getDate() + 7);
                         break;
                     case '1 month':
-                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 1));
+                        endDate.setMonth(endDate.getMonth() + 1);
                         break;
                     case '3 months':
-                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 3));
+                        endDate.setMonth(endDate.getMonth() + 3);
                         break;
                     case '6 months':
-                        endDate = new Date(startDate.setMonth(startDate.getMonth() + 6));
+                        endDate.setMonth(endDate.getMonth() + 6);
                         break;
                     case '1 year':
-                        endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
+                        endDate.setFullYear(endDate.getFullYear() + 1);
                         break;
                 }
                 member.membership = {
                     duration: membershipRequest.requestedDuration,
-                    startDate: new Date(),
+                    startDate,
                     endDate,
                 };
                 await member.save();

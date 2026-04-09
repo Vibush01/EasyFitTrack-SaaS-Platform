@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
+const membershipGuard = require('../middleware/membershipGuard');
 const ChatMessage = require('../models/ChatMessage');
 const Announcement = require('../models/Announcement');
 const Trainer = require('../models/Trainer');
@@ -10,7 +11,7 @@ const paginate = require('../utils/paginate');
 
 // ─── Personal DM Messages ──────────────────────────────────────
 // Get DM messages between current user and another user (gym-agnostic)
-router.get('/dm/:otherUserId', authMiddleware, async (req, res, next) => {
+router.get('/dm/:otherUserId', authMiddleware, membershipGuard, async (req, res, next) => {
     const { otherUserId } = req.params;
 
     try {
@@ -46,7 +47,7 @@ router.get('/dm/:otherUserId', authMiddleware, async (req, res, next) => {
 });
 
 // Get chat messages between sender and receiver within a gym
-router.get('/messages/:gymId/:receiverId', authMiddleware, async (req, res, next) => {
+router.get('/messages/:gymId/:receiverId', authMiddleware, membershipGuard, async (req, res, next) => {
     const { gymId, receiverId } = req.params;
 
     try {

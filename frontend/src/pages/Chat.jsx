@@ -22,8 +22,11 @@ const Chat = () => {
     const [unreadCounts, setUnreadCounts] = useState({});
     const [showChat, setShowChat] = useState(false);
     const [hasPersonalConnections, setHasPersonalConnections] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const socketRef = useRef(null);
     const messagesEndRef = useRef(null);
+    const chatModeRef = useRef(chatMode);
+    const selectedReceiverRef = useRef(selectedReceiver);
 
     const hasGym = user?.role === 'gym' || userDetails?.gym;
 
@@ -32,6 +35,10 @@ const Chat = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // Keep refs in sync with state
+    useEffect(() => { chatModeRef.current = chatMode; }, [chatMode]);
+    useEffect(() => { selectedReceiverRef.current = selectedReceiver; }, [selectedReceiver]);
+
     // Auto-select mode based on what's available
     useEffect(() => {
         if (!hasGym && hasPersonalConnections) {
@@ -39,8 +46,10 @@ const Chat = () => {
         }
     }, [hasGym, hasPersonalConnections]);
 
-    // ─── Socket Setup ──────────────────────────────────
+    // ─── Socket Setup (connect once, use refs for current state) ──
     useEffect(() => {
+        if (!user) return;
+
         const socketUrl = API_URL.replace('/api', '');
         socketRef.current = io(socketUrl);
 
@@ -55,9 +64,14 @@ const Chat = () => {
 
         // ── Gym Chat events ──
         socketRef.current.on('message', (newMessage) => {
-            if (chatMode !== 'gym') return;
+            if (chatModeRef.current !== 'gym') return;
+            const currentReceiver = selectedReceiverRef.current;
+
             setMessages((prev) => {
-                if (selectedReceiver && newMessage.sender === selectedReceiver._id) {
+                // Deduplicate: skip if message already exists (optimistic or echo)
+                if (newMessage._id && prev.some((m) => m._id === newMessage._id)) return prev;
+
+                if (currentReceiver && newMessage.sender === currentReceiver._id) {
                     socketRef.current.emit('markMessagesAsRead', {
                         senderId: newMessage.sender,
                         receiverId: user.id,
@@ -65,12 +79,19 @@ const Chat = () => {
                     });
                     return [...prev, { ...newMessage, status: 'read' }];
                 } else if (newMessage.sender === user.id) {
+                    // Replace optimistic message with server-confirmed one
+                    const optimisticIdx = prev.findIndex((m) => m._optimistic && !m._id);
+                    if (optimisticIdx !== -1) {
+                        const updated = [...prev];
+                        updated[optimisticIdx] = newMessage;
+                        return updated;
+                    }
                     return [...prev, newMessage];
                 }
                 return prev;
             });
 
-            if (!selectedReceiver || newMessage.sender !== selectedReceiver._id) {
+            if (!currentReceiver || newMessage.sender !== currentReceiver._id) {
                 if (newMessage.sender !== user.id) {
                     setUnreadCounts((prev) => ({
                         ...prev,
@@ -92,21 +113,33 @@ const Chat = () => {
 
         // ── Personal DM events ──
         socketRef.current.on('personalMessage', (newMessage) => {
-            if (chatMode !== 'personal') return;
+            if (chatModeRef.current !== 'personal') return;
+            const currentReceiver = selectedReceiverRef.current;
+
             setMessages((prev) => {
-                if (selectedReceiver && newMessage.sender === selectedReceiver._id) {
+                // Deduplicate
+                if (newMessage._id && prev.some((m) => m._id === newMessage._id)) return prev;
+
+                if (currentReceiver && newMessage.sender === currentReceiver._id) {
                     socketRef.current.emit('markPersonalMessagesAsRead', {
                         senderId: newMessage.sender,
                         receiverId: user.id,
                     });
                     return [...prev, { ...newMessage, status: 'read' }];
                 } else if (newMessage.sender === user.id) {
+                    // Replace optimistic message with server-confirmed one
+                    const optimisticIdx = prev.findIndex((m) => m._optimistic && !m._id);
+                    if (optimisticIdx !== -1) {
+                        const updated = [...prev];
+                        updated[optimisticIdx] = newMessage;
+                        return updated;
+                    }
                     return [...prev, newMessage];
                 }
                 return prev;
             });
 
-            if (!selectedReceiver || newMessage.sender !== selectedReceiver._id) {
+            if (!currentReceiver || newMessage.sender !== currentReceiver._id) {
                 if (newMessage.sender !== user.id) {
                     setUnreadCounts((prev) => ({
                         ...prev,
@@ -129,7 +162,8 @@ const Chat = () => {
         return () => {
             socketRef.current?.disconnect();
         };
-    }, [user, userDetails, selectedReceiver, chatMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, userDetails]);
 
     // ─── Fetch Receivers ───────────────────────────────
     useEffect(() => {
@@ -138,10 +172,11 @@ const Chat = () => {
         } else {
             fetchPersonalReceivers();
         }
-        // Clear selection when switching modes
+        // Clear selection and search when switching modes
         setSelectedReceiver(null);
         setMessages([]);
         setShowChat(false);
+        setSearchQuery('');
     }, [chatMode]);
 
     const fetchGymReceivers = async () => {
@@ -307,6 +342,19 @@ const Chat = () => {
         const senderModel = user.role.charAt(0).toUpperCase() + user.role.slice(1);
         const receiverModel = selectedReceiver.role.charAt(0).toUpperCase() + selectedReceiver.role.slice(1);
 
+        // Optimistically add the message to the UI immediately
+        const optimisticMsg = {
+            sender: user.id,
+            senderModel,
+            receiver: selectedReceiver._id,
+            receiverModel,
+            message,
+            timestamp: new Date().toISOString(),
+            status: 'sent',
+            _optimistic: true, // marker for dedup when server echo arrives
+        };
+        setMessages((prev) => [...prev, optimisticMsg]);
+
         if (chatMode === 'gym') {
             const gymId = user.role === 'gym' ? user.id : userDetails.gym;
             socketRef.current.emit('sendMessage', {
@@ -333,8 +381,15 @@ const Chat = () => {
     // ─── Render Helpers ────────────────────────────────
     const getUnreadKey = (receiverId) => chatMode === 'personal' ? `dm_${receiverId}` : receiverId;
 
-    const showBothModes = hasGym && hasPersonalConnections;
+    // Show mode tabs whenever user has a gym OR personal connections (so gym users always see both tabs)
+    const showModeTabs = hasGym || hasPersonalConnections;
     const showOnlyPersonal = !hasGym && hasPersonalConnections;
+
+    // Filter receivers by search query
+    const filteredReceivers = receivers.filter((receiver) =>
+        receiver.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        receiver.role?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     // ─── Access Check ──────────────────────────────────
     if (!user) {
@@ -377,19 +432,21 @@ const Chat = () => {
             <div className="h-[100dvh] flex flex-col pt-2 sm:pt-6 pb-2 sm:pb-6 px-2 sm:px-6 lg:px-8">
                 <div className="container mx-auto flex flex-col flex-1 min-h-0 gap-2 sm:gap-4">
 
-                    {/* Mode Toggle — only show if user has both */}
-                    {showBothModes && (
+                    {/* Mode Toggle — show whenever user has gym or personal connections */}
+                    {showModeTabs && (
                         <div className="flex gap-2 px-1">
-                            <button
-                                onClick={() => setChatMode('gym')}
-                                className={`flex-1 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm transition-all duration-300 ${
-                                    chatMode === 'gym'
-                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                                        : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-color)]'
-                                }`}
-                            >
-                                🏢 Gym Chat
-                            </button>
+                            {hasGym && (
+                                <button
+                                    onClick={() => setChatMode('gym')}
+                                    className={`flex-1 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm transition-all duration-300 ${
+                                        chatMode === 'gym'
+                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                            : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-color)]'
+                                    }`}
+                                >
+                                    🏢 Gym Chat
+                                </button>
+                            )}
                             <button
                                 onClick={() => setChatMode('personal')}
                                 className={`flex-1 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm transition-all duration-300 ${
@@ -420,11 +477,34 @@ const Chat = () => {
                                 <p className="text-xs text-[var(--text-secondary)] mt-1">
                                     {chatMode === 'gym' ? 'Chat with your gym' : 'Chat with your coaches / clients'}
                                 </p>
+                                {/* Search / filter bar */}
+                                <div className="mt-3 relative">
+                                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Search members, trainers..."
+                                        className="w-full pl-9 pr-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder-gray-500 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all duration-300"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex-1 overflow-y-auto p-2 sm:p-3 custom-scrollbar">
-                                {receivers.length > 0 ? (
+                                {filteredReceivers.length > 0 ? (
                                     <ul className="space-y-1.5 sm:space-y-2">
-                                        {receivers.map((receiver) => (
+                                        {filteredReceivers.map((receiver) => (
                                             <li
                                                 key={receiver._id}
                                                 onClick={() => handleReceiverSelect(receiver)}
@@ -471,6 +551,15 @@ const Chat = () => {
                                             </li>
                                         ))}
                                     </ul>
+                                ) : receivers.length > 0 && searchQuery ? (
+                                    <div className="flex flex-col items-center justify-center h-full text-center py-8">
+                                        <svg className="w-10 h-10 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <p className="text-[var(--text-secondary)] text-sm">
+                                            No results for "{searchQuery}"
+                                        </p>
+                                    </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-full text-center py-8">
                                         <p className="text-[var(--text-secondary)] text-sm">

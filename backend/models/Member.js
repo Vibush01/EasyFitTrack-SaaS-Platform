@@ -23,6 +23,23 @@ const memberSchema = new mongoose.Schema({
             message: 'workoutSchedule must contain integers 0-6',
         },
     },
+}, {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+});
+
+// Virtual: compute membership status from endDate
+memberSchema.virtual('membershipStatus').get(function () {
+    if (!this.membership || !this.membership.endDate) return 'none';
+    const now = new Date();
+    const end = new Date(this.membership.endDate);
+    const diffMs = now - end; // positive = past expiry
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    if (diffDays <= 0) return 'active';       // not expired yet
+    if (diffDays <= 5) return 'grace';         // 1-5 days past expiry
+    if (diffDays <= 10) return 'suspended';    // 5-10 days past expiry
+    return 'terminated';                       // >10 days past expiry
 });
 
 memberSchema.pre('save', async function (next) {

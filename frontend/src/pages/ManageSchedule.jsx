@@ -44,8 +44,10 @@ const ManageSchedule = () => {
         try {
             const token = localStorage.getItem('token');
             const data = {
-                startTime: formData.startTime,
-                endTime: formData.endTime,
+                // Convert local datetime-local values to proper UTC ISO strings
+                // so the backend stores the correct absolute point in time
+                startTime: new Date(formData.startTime).toISOString(),
+                endTime: new Date(formData.endTime).toISOString(),
             };
 
             const res = await axios.post(`${API_URL}/trainer/trainer-schedules`, data, {
