@@ -25,6 +25,8 @@ const Chat = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const socketRef = useRef(null);
     const messagesEndRef = useRef(null);
+    const chatModeRef = useRef(chatMode);
+    const selectedReceiverRef = useRef(selectedReceiver);
 
     const hasGym = user?.role === 'gym' || userDetails?.gym;
 
@@ -33,6 +35,10 @@ const Chat = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // Keep refs in sync with state
+    useEffect(() => { chatModeRef.current = chatMode; }, [chatMode]);
+    useEffect(() => { selectedReceiverRef.current = selectedReceiver; }, [selectedReceiver]);
+
     // Auto-select mode based on what's available
     useEffect(() => {
         if (!hasGym && hasPersonalConnections) {
@@ -40,8 +46,10 @@ const Chat = () => {
         }
     }, [hasGym, hasPersonalConnections]);
 
-    // ─── Socket Setup ──────────────────────────────────
+    // ─── Socket Setup (connect once, use refs for current state) ──
     useEffect(() => {
+        if (!user) return;
+
         const socketUrl = API_URL.replace('/api', '');
         socketRef.current = io(socketUrl);
 
@@ -56,9 +64,14 @@ const Chat = () => {
 
         // ── Gym Chat events ──
         socketRef.current.on('message', (newMessage) => {
-            if (chatMode !== 'gym') return;
+            if (chatModeRef.current !== 'gym') return;
+            const currentReceiver = selectedReceiverRef.current;
+
             setMessages((prev) => {
-                if (selectedReceiver && newMessage.sender === selectedReceiver._id) {
+                // Deduplicate: skip if message already exists (optimistic or echo)
+                if (newMessage._id && prev.some((m) => m._id === newMessage._id)) return prev;
+
+                if (currentReceiver && newMessage.sender === currentReceiver._id) {
                     socketRef.current.emit('markMessagesAsRead', {
                         senderId: newMessage.sender,
                         receiverId: user.id,
@@ -66,12 +79,19 @@ const Chat = () => {
                     });
                     return [...prev, { ...newMessage, status: 'read' }];
                 } else if (newMessage.sender === user.id) {
+                    // Replace optimistic message with server-confirmed one
+                    const optimisticIdx = prev.findIndex((m) => m._optimistic && !m._id);
+                    if (optimisticIdx !== -1) {
+                        const updated = [...prev];
+                        updated[optimisticIdx] = newMessage;
+                        return updated;
+                    }
                     return [...prev, newMessage];
                 }
                 return prev;
             });
 
-            if (!selectedReceiver || newMessage.sender !== selectedReceiver._id) {
+            if (!currentReceiver || newMessage.sender !== currentReceiver._id) {
                 if (newMessage.sender !== user.id) {
                     setUnreadCounts((prev) => ({
                         ...prev,
@@ -93,21 +113,33 @@ const Chat = () => {
 
         // ── Personal DM events ──
         socketRef.current.on('personalMessage', (newMessage) => {
-            if (chatMode !== 'personal') return;
+            if (chatModeRef.current !== 'personal') return;
+            const currentReceiver = selectedReceiverRef.current;
+
             setMessages((prev) => {
-                if (selectedReceiver && newMessage.sender === selectedReceiver._id) {
+                // Deduplicate
+                if (newMessage._id && prev.some((m) => m._id === newMessage._id)) return prev;
+
+                if (currentReceiver && newMessage.sender === currentReceiver._id) {
                     socketRef.current.emit('markPersonalMessagesAsRead', {
                         senderId: newMessage.sender,
                         receiverId: user.id,
                     });
                     return [...prev, { ...newMessage, status: 'read' }];
                 } else if (newMessage.sender === user.id) {
+                    // Replace optimistic message with server-confirmed one
+                    const optimisticIdx = prev.findIndex((m) => m._optimistic && !m._id);
+                    if (optimisticIdx !== -1) {
+                        const updated = [...prev];
+                        updated[optimisticIdx] = newMessage;
+                        return updated;
+                    }
                     return [...prev, newMessage];
                 }
                 return prev;
             });
 
-            if (!selectedReceiver || newMessage.sender !== selectedReceiver._id) {
+            if (!currentReceiver || newMessage.sender !== currentReceiver._id) {
                 if (newMessage.sender !== user.id) {
                     setUnreadCounts((prev) => ({
                         ...prev,
@@ -130,7 +162,8 @@ const Chat = () => {
         return () => {
             socketRef.current?.disconnect();
         };
-    }, [user, userDetails, selectedReceiver, chatMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, userDetails]);
 
     // ─── Fetch Receivers ───────────────────────────────
     useEffect(() => {
@@ -308,6 +341,19 @@ const Chat = () => {
 
         const senderModel = user.role.charAt(0).toUpperCase() + user.role.slice(1);
         const receiverModel = selectedReceiver.role.charAt(0).toUpperCase() + selectedReceiver.role.slice(1);
+
+        // Optimistically add the message to the UI immediately
+        const optimisticMsg = {
+            sender: user.id,
+            senderModel,
+            receiver: selectedReceiver._id,
+            receiverModel,
+            message,
+            timestamp: new Date().toISOString(),
+            status: 'sent',
+            _optimistic: true, // marker for dedup when server echo arrives
+        };
+        setMessages((prev) => [...prev, optimisticMsg]);
 
         if (chatMode === 'gym') {
             const gymId = user.role === 'gym' ? user.id : userDetails.gym;
