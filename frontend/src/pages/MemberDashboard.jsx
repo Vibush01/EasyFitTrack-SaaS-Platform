@@ -79,6 +79,202 @@ const StrengthPRCard = () => {
     );
 };
 
+// ── Diet Plan Card ───────────────────────────────────────────
+const TodayDietCard = () => {
+    const [dietData, setDietData] = useState(null);
+    const [loaded, setLoaded] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/member/diet-schedule/today`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                setDietData(res.data);
+            } catch { /* silent */ }
+            finally { setLoaded(true); }
+        })();
+    }, []);
+
+    if (!loaded) return null;
+    
+    // Only show if there are planned meals or if they've logged something today
+    const hasData = dietData && (dietData.plannedMeals?.length > 0 || dietData.todayMacroLogs?.length > 0);
+    if (!hasData) return null;
+
+    const plannedCals = dietData?.totalPlanned?.calories || 0;
+    const loggedCals = dietData?.totalLogged?.calories || 0;
+    const calPercent = plannedCals > 0 ? Math.min(Math.round((loggedCals / plannedCals) * 100), 100) : 0;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mb-6"
+        >
+            <Link to="/diet-schedule" className="block">
+                <div className="bg-[var(--bg-card)]/80 backdrop-blur-md rounded-2xl border border-[var(--border-color)] p-5 hover:border-emerald-500/30 transition-all duration-300 group">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-[var(--text-primary)] font-bold text-sm flex items-center gap-2">
+                            <span className="bg-emerald-600 w-1 h-5 rounded-full" />
+                            Today's Diet Plan
+                        </h3>
+                        <span className="text-xs text-emerald-500 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                            Manage Schedule →
+                        </span>
+                    </div>
+
+                    {dietData.plannedMeals?.length > 0 ? (
+                        <>
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs text-[var(--text-secondary)] font-medium">Calories</span>
+                                <span className="text-xs font-bold text-[var(--text-primary)]">{loggedCals} / {plannedCals} kcal</span>
+                            </div>
+                            <div className="w-full bg-[var(--bg-secondary)] rounded-full h-2 mb-4 overflow-hidden border border-[var(--border-color)]">
+                                <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${calPercent}%` }}></div>
+                            </div>
+                            <p className="text-sm font-medium text-[var(--text-primary)]">
+                                {dietData.plannedMeals.length} planned {dietData.plannedMeals.length === 1 ? 'meal' : 'meals'} today 
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-sm text-[var(--text-secondary)]">No meals planned for today, but you have logged foods.</p>
+                    )}
+                </div>
+            </Link>
+        </motion.div>
+    );
+};
+
+// ── Trainer Feedback Card ──────────────────────────────────────
+const TrainerFeedbackCard = () => {
+    const [threads, setThreads] = useState([]);
+    const [loaded, setLoaded] = useState(false);
+    const [replyText, setReplyText] = useState({});
+    const [submittingId, setSubmittingId] = useState(null);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/member/trainer-feedback`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                // only take the 2 most recent threads that have unread/recent activity
+                setThreads((res.data || []).slice(0, 2));
+            } catch { /* silent */ }
+            finally { setLoaded(true); }
+        })();
+    }, []);
+
+    const handleReply = async (threadId, parentId) => {
+        const text = replyText[threadId];
+        if (!text || !text.trim()) return;
+
+        try {
+            setSubmittingId(threadId);
+            const token = localStorage.getItem('token');
+            const res = await axios.post(`${API_URL}/member/trainer-feedback/reply`, {
+                threadId,
+                parentId,
+                comment: text
+            }, { headers: { Authorization: `Bearer ${token}` } });
+            
+            // Assume success and optimistically show success message or just clear it
+            toast.success("Reply sent to trainer", { position: "bottom-right" });
+            setReplyText(prev => ({ ...prev, [threadId]: '' }));
+            
+            // Ideally we re-fetch to show the new node
+            const updated = await axios.get(`${API_URL}/member/trainer-feedback`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setThreads((updated.data || []).slice(0, 2));
+
+        } catch (err) {
+            toast.error("Failed to send reply");
+        } finally {
+            setSubmittingId(null);
+        }
+    };
+
+    if (!loaded || threads.length === 0) return null;
+
+    // Helper to find the latest comment in the thread which isn't from the member themselves
+    const getLatestTrainerComment = (nodes) => {
+        const trainerNodes = nodes.filter(n => n.authorModel === 'Trainer');
+        if (trainerNodes.length === 0) return nodes[0];
+        return trainerNodes.reduce((latest, current) => new Date(latest.createdAt) > new Date(current.createdAt) ? latest : current);
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="mb-6"
+        >
+            <div className="bg-[var(--bg-card)]/80 backdrop-blur-md rounded-2xl border border-[var(--border-color)] p-5 hover:border-blue-500/30 transition-all duration-300">
+                <div className="flex items-center gap-2 mb-4">
+                    <span className="bg-blue-600 w-1 h-5 rounded-full" />
+                    <h3 className="text-[var(--text-primary)] font-bold text-sm">Trainer Feedback</h3>
+                </div>
+
+                <div className="space-y-4">
+                    {threads.map((thread) => {
+                        const targetLabel = thread.targetType === 'workout_log' ? 'Workout Log' : 'Diet Log';
+                        const targetColor = thread.targetType === 'workout_log' ? 'text-indigo-400 bg-indigo-500/10' : 'text-orange-400 bg-orange-500/10';
+                        
+                        // We will just show the latest message from the trainer in this thread snippet
+                        const latestMessage = getLatestTrainerComment(thread.nodes);
+                        
+                        return (
+                            <div key={thread._id} className="bg-[var(--bg-secondary)]/60 border border-[var(--border-color)] rounded-xl p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${targetColor}`}>
+                                        {targetLabel}
+                                    </span>
+                                    <span className="text-[10px] text-[var(--text-secondary)]">
+                                        {new Date(latestMessage.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric'})}
+                                    </span>
+                                </div>
+                                
+                                <div className="flex gap-3 mb-3">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500/20 text-blue-500 font-bold flex items-center justify-center rounded-full border border-blue-500/30">
+                                        {latestMessage.author?.name?.charAt(0) || 'T'}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-[var(--text-primary)] mb-0.5">{latestMessage.author?.name} <span className="text-[10px] font-normal text-[var(--text-secondary)] ml-1">Trainer</span></p>
+                                        <p className="text-sm text-[var(--text-secondary)] line-clamp-2">{latestMessage.comment}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 items-center mt-2 pt-2 border-t border-[var(--border-color)]">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Reply inline..." 
+                                        value={replyText[thread._id] || ''}
+                                        onChange={(e) => setReplyText(prev => ({ ...prev, [thread._id]: e.target.value }))}
+                                        className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500/50 text-[var(--text-primary)] transition-colors"
+                                    />
+                                    <button 
+                                        onClick={() => handleReply(thread._id, latestMessage._id)}
+                                        disabled={submittingId === thread._id || !replyText[thread._id]?.trim()}
+                                        className="text-xs bg-blue-500/10 text-blue-500 font-bold px-3 py-1.5 rounded-lg hover:bg-blue-500/20 disabled:opacity-50 transition-colors"
+                                    >
+                                        Reply
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
 const MemberDashboard = () => {
     const { user, userDetails } = useContext(AuthContext);
     const [error, setError] = useState('');
@@ -145,6 +341,13 @@ const MemberDashboard = () => {
 
                 {/* Strength PR Card */}
                 <StrengthPRCard />
+                
+                {/* Today's Diet Card */}
+                <TodayDietCard />
+
+                {/* Trainer Feedback Card */}
+                <TrainerFeedbackCard />
+
                 {/* Quick Links */}
                 <motion.div
                     initial="hidden"
@@ -233,12 +436,31 @@ const MemberDashboard = () => {
                             </Link>
                         </motion.div>
 
+                        {/* Diet Schedule quick-link */}
+                        <motion.div whileHover="hover" variants={buttonHover} className="">
+                            <Link
+                                to="/diet-schedule"
+                                className="flex items-center gap-4 bg-gradient-to-r from-emerald-600/10 to-teal-600/5 border border-emerald-500/20 text-[var(--text-primary)] px-6 py-4 rounded-2xl hover:border-emerald-500/40 hover:bg-emerald-600/10 transition-all duration-300 group h-full"
+                            >
+                                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                                    <span className="text-xl">🥗</span>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-sm">Diet Schedule</p>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Plan your weekly meals</p>
+                                </div>
+                                <svg className="w-4 h-4 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </Link>
+                        </motion.div>
+
                         {/* My Templates quick-link */}
-                        <motion.div whileHover="hover" variants={buttonHover} className="sm:col-span-2">
+                        <motion.div whileHover="hover" variants={buttonHover} className="">
                             <Link
                                 to="/my-workouts"
                                 id="my-workouts-link"
-                                className="flex items-center gap-4 bg-gradient-to-r from-purple-600/10 to-pink-600/5 border border-purple-500/20 text-[var(--text-primary)] px-6 py-4 rounded-2xl hover:border-purple-500/40 hover:bg-purple-600/10 transition-all duration-300 group"
+                                className="flex items-center gap-4 bg-gradient-to-r from-purple-600/10 to-pink-600/5 border border-purple-500/20 text-[var(--text-primary)] px-6 py-4 rounded-2xl hover:border-purple-500/40 hover:bg-purple-600/10 transition-all duration-300 group h-full"
                             >
                                 <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center shadow-md shadow-purple-600/20 group-hover:scale-110 transition-transform">
                                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,8 +468,8 @@ const MemberDashboard = () => {
                                     </svg>
                                 </div>
                                 <div className="flex-1">
-                                    <p className="font-bold text-sm">My Workout Templates</p>
-                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Create &amp; manage reusable workout plans</p>
+                                    <p className="font-bold text-sm">Workout Templates</p>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Manage custom plans</p>
                                 </div>
                                 <svg className="w-4 h-4 text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>

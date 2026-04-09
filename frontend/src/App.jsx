@@ -19,8 +19,10 @@ import Chat from './pages/Chat';
 import Announcements from './pages/Announcements';
 import WorkoutPlans from './pages/WorkoutPlans';
 import ClientRoster from './pages/ClientRoster';
+import ClientActivity from './pages/ClientActivity';
 import FindTrainer from './pages/FindTrainer';
 import MemberDashboard from './pages/MemberDashboard';
+import DietSchedule from './pages/DietSchedule';
 import RequestPlan from './pages/RequestPlan';
 import MyWorkouts from './pages/MyWorkouts';
 import TodayWorkout from './pages/TodayWorkout';
@@ -90,6 +92,11 @@ function App() {
                                     <ClientRoster />
                                 </ProtectedRoute>
                             } />
+                            <Route path="/client-activity/:memberId" element={
+                                <ProtectedRoute>
+                                    <ClientActivity />
+                                </ProtectedRoute>
+                            } />
                             <Route path="/find-trainer" element={
                                 <ProtectedRoute>
                                     <FindTrainer />
@@ -98,6 +105,11 @@ function App() {
                             <Route path="/member-dashboard" element={
                                 <ProtectedRoute>
                                     <MemberDashboard />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/diet-schedule" element={
+                                <ProtectedRoute>
+                                    <DietSchedule />
                                 </ProtectedRoute>
                             } />
                             <Route path="/request-plan" element={

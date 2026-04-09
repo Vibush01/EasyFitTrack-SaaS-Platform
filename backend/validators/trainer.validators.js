@@ -154,6 +154,30 @@ const coachingRequestActionValidation = [
         .withMessage('Action must be accept or deny'),
 ];
 
+const trainerCommentValidation = [
+    body('comment')
+        .trim()
+        .notEmpty()
+        .withMessage('Comment is required')
+        .isLength({ max: 300 })
+        .withMessage('Comment must be at most 300 characters'),
+    body('targetType')
+        .trim()
+        .notEmpty()
+        .withMessage('Target type is required')
+        .isIn(['workout_log', 'macro_log'])
+        .withMessage('Target type must be workout_log or macro_log'),
+    body('targetId')
+        .notEmpty()
+        .withMessage('Target ID is required')
+        .isMongoId()
+        .withMessage('Invalid target ID'),
+];
+
+const memberIdParamValidation = [
+    param('memberId').isMongoId().withMessage('Invalid member ID'),
+];
+
 module.exports = {
     workoutPlanValidation,
     workoutPlanUpdateValidation,
@@ -169,4 +193,6 @@ module.exports = {
     bookSessionValidation,
     coachingRequestValidation,
     coachingRequestActionValidation,
+    trainerCommentValidation,
+    memberIdParamValidation,
 };
