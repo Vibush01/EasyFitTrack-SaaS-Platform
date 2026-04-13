@@ -13,6 +13,7 @@ const GymDashboard = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [announcementForm, setAnnouncementForm] = useState('');
     const [editAnnouncementId, setEditAnnouncementId] = useState(null);
+    const [expiringMembers, setExpiringMembers] = useState([]);
 
     useEffect(() => {
         const fetchRequests = async () => {
@@ -46,6 +47,20 @@ const GymDashboard = () => {
         }
         if (user?.role === 'gym') {
             fetchAnnouncements();
+
+            // Fetch members expiring within 7 days
+            const fetchExpiringMembers = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await axios.get(`${API_URL}/gym/members/expiring-soon`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    setExpiringMembers(res.data);
+                } catch (err) {
+                    console.error('Failed to fetch expiring members:', err);
+                }
+            };
+            fetchExpiringMembers();
         }
     }, [user, userDetails]);
 
@@ -301,6 +316,90 @@ const GymDashboard = () => {
                             )}
                         </motion.div>
                     </div>
+                )}
+
+                {/* Expiring Soon Section — Gym Owner Only */}
+                {user.role === 'gym' && (
+                    <motion.div
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        variants={fadeIn}
+                        className="bg-[var(--bg-card)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--border-color)] mb-8"
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-[var(--text-primary)] flex items-center">
+                                <span className="bg-orange-500 w-1.5 h-8 rounded-full mr-3"></span>
+                                🔔 Expiring Soon
+                            </h2>
+                            {expiringMembers.length > 0 && (
+                                <span className="bg-red-500/15 text-red-400 text-sm font-bold px-3 py-1 rounded-full border border-red-500/25">
+                                    {expiringMembers.length} member{expiringMembers.length > 1 ? 's' : ''}
+                                </span>
+                            )}
+                        </div>
+
+                        {expiringMembers.length > 0 ? (
+                            <ul className="space-y-4">
+                                {expiringMembers.map((member) => (
+                                    <motion.li
+                                        key={member._id}
+                                        className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-5 rounded-xl hover:border-orange-500/50 transition-all duration-300"
+                                        initial="hidden"
+                                        whileInView="visible"
+                                        viewport={{ once: true }}
+                                        variants={zoomIn}
+                                    >
+                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                {member.profileImage ? (
+                                                    <img src={member.profileImage} alt={member.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--border-color)]" />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold text-lg">
+                                                        {member.name?.charAt(0) || '?'}
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[var(--text-primary)] font-bold text-base">{member.name}</p>
+                                                    <p className="text-[var(--text-secondary)] text-sm">{member.email}</p>
+                                                    <p className="text-[var(--text-secondary)] text-xs mt-1">
+                                                        Expires: {new Date(member.membership.endDate).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                    member.daysRemaining <= 2
+                                                        ? 'bg-red-500/15 text-red-400 border border-red-500/25'
+                                                        : member.daysRemaining <= 5
+                                                        ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/25'
+                                                        : 'bg-green-500/15 text-green-400 border border-green-500/25'
+                                                }`}>
+                                                    {member.daysRemaining} day{member.daysRemaining !== 1 ? 's' : ''} left
+                                                </span>
+                                                <Link
+                                                    to="/chat"
+                                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 text-sm font-semibold shadow-lg shadow-blue-600/20"
+                                                >
+                                                    Message
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </motion.li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="text-center py-12">
+                                <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <p className="text-[var(--text-secondary)]">All memberships are healthy!</p>
+                                <p className="text-[var(--text-secondary)] text-sm mt-1">No expirations in the next 7 days.</p>
+                            </div>
+                        )}
+                    </motion.div>
                 )}
 
                 {/* Join Requests Section (Only for Gym or Trainer in a Gym) */}
