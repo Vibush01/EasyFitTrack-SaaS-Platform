@@ -22,6 +22,7 @@ const Trainer = require('../models/Trainer');
 const JoinRequest = require('../models/JoinRequest');
 const EventLog = require('../models/EventLog');
 const MembershipRequest = require('../models/MembershipRequest');
+const DailyLog = require('../models/DailyLog');
 
 // Configure Multer for file uploads
 const storage = multer.memoryStorage();
@@ -453,6 +454,64 @@ router.get('/members/expiring-soon', authMiddleware, async (req, res, next) => {
         res.json(result);
     } catch (error) {
         logger.error('Error in GET /members/expiring-soon:', error);
+        next(error);
+    }
+});
+
+// ─── Analytics: Peak Hours ─────────────────────────────────
+// GET /gym/analytics/peak-hours — Gym sees hourly workout activity
+router.get('/analytics/peak-hours', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'gym') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const gym = await Gym.findById(req.user.id);
+        if (!gym) {
+            return res.status(404).json({ message: 'Gym not found' });
+        }
+
+        if (!gym.members || gym.members.length === 0) {
+            return res.json([]);
+        }
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Aggregate DailyLogs for gym members over the last 30 days
+        // Group by $hour of createdAt to find peak workout-start times
+        const peakHours = await DailyLog.aggregate([
+            {
+                $match: {
+                    member: { $in: gym.members },
+                    createdAt: { $gte: thirtyDaysAgo },
+                },
+            },
+            {
+                $group: {
+                    _id: { $hour: '$createdAt' },
+                    count: { $sum: 1 },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    hour: '$_id',
+                    count: 1,
+                },
+            },
+            { $sort: { hour: 1 } },
+        ]);
+
+        // Fill in missing hours with count: 0 for a complete 0-23 array
+        const fullDay = Array.from({ length: 24 }, (_, i) => {
+            const found = peakHours.find((h) => h.hour === i);
+            return { hour: i, count: found ? found.count : 0 };
+        });
+
+        res.json(fullDay);
+    } catch (error) {
+        logger.error('Error in GET /analytics/peak-hours:', error);
         next(error);
     }
 });
