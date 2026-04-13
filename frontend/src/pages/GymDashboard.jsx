@@ -13,6 +13,9 @@ const GymDashboard = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [announcementForm, setAnnouncementForm] = useState('');
     const [editAnnouncementId, setEditAnnouncementId] = useState(null);
+    const [expiringMembers, setExpiringMembers] = useState([]);
+    const [peakHours, setPeakHours] = useState([]);
+    const [growthData, setGrowthData] = useState({ monthlyGrowth: [], totalMembers: 0, totalTrainers: 0 });
 
     useEffect(() => {
         const fetchRequests = async () => {
@@ -46,6 +49,46 @@ const GymDashboard = () => {
         }
         if (user?.role === 'gym') {
             fetchAnnouncements();
+
+            // Fetch members expiring within 7 days
+            const fetchExpiringMembers = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await axios.get(`${API_URL}/gym/members/expiring-soon`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    setExpiringMembers(res.data);
+                } catch (err) {
+                    console.error('Failed to fetch expiring members:', err);
+                }
+            };
+            fetchExpiringMembers();
+
+            const fetchPeakHours = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await axios.get(`${API_URL}/gym/analytics/peak-hours`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    setPeakHours(res.data);
+                } catch (err) {
+                    console.error('Failed to fetch peak hours:', err);
+                }
+            };
+            fetchPeakHours();
+
+            const fetchGrowthData = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await axios.get(`${API_URL}/gym/analytics/growth`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    setGrowthData(res.data);
+                } catch (err) {
+                    console.error('Failed to fetch growth data:', err);
+                }
+            };
+            fetchGrowthData();
         }
     }, [user, userDetails]);
 
@@ -120,6 +163,12 @@ const GymDashboard = () => {
         } catch (err) {
             toast.error('Failed to delete announcement' + err, { position: "top-right" });
         }
+    };
+
+    const formatHour = (hour) => {
+        if (hour === 0) return '12 AM';
+        if (hour === 12) return '12 PM';
+        return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
     };
 
     // Animation Variants
@@ -301,6 +350,231 @@ const GymDashboard = () => {
                             )}
                         </motion.div>
                     </div>
+                )}
+
+                {/* Expiring Soon Section — Gym Owner Only */}
+                {user.role === 'gym' && (
+                    <motion.div
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        variants={fadeIn}
+                        className="bg-[var(--bg-card)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--border-color)] mb-8"
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-[var(--text-primary)] flex items-center">
+                                <span className="bg-orange-500 w-1.5 h-8 rounded-full mr-3"></span>
+                                🔔 Expiring Soon
+                            </h2>
+                            {expiringMembers.length > 0 && (
+                                <span className="bg-red-500/15 text-red-400 text-sm font-bold px-3 py-1 rounded-full border border-red-500/25">
+                                    {expiringMembers.length} member{expiringMembers.length > 1 ? 's' : ''}
+                                </span>
+                            )}
+                        </div>
+
+                        {expiringMembers.length > 0 ? (
+                            <ul className="space-y-4">
+                                {expiringMembers.map((member) => (
+                                    <motion.li
+                                        key={member._id}
+                                        className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-5 rounded-xl hover:border-orange-500/50 transition-all duration-300"
+                                        initial="hidden"
+                                        whileInView="visible"
+                                        viewport={{ once: true }}
+                                        variants={zoomIn}
+                                    >
+                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                {member.profileImage ? (
+                                                    <img src={member.profileImage} alt={member.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--border-color)]" />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold text-lg">
+                                                        {member.name?.charAt(0) || '?'}
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[var(--text-primary)] font-bold text-base">{member.name}</p>
+                                                    <p className="text-[var(--text-secondary)] text-sm">{member.email}</p>
+                                                    <p className="text-[var(--text-secondary)] text-xs mt-1">
+                                                        Expires: {new Date(member.membership.endDate).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                    member.daysRemaining <= 2
+                                                        ? 'bg-red-500/15 text-red-400 border border-red-500/25'
+                                                        : member.daysRemaining <= 5
+                                                        ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/25'
+                                                        : 'bg-green-500/15 text-green-400 border border-green-500/25'
+                                                }`}>
+                                                    {member.daysRemaining} day{member.daysRemaining !== 1 ? 's' : ''} left
+                                                </span>
+                                                <Link
+                                                    to="/chat"
+                                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 text-sm font-semibold shadow-lg shadow-blue-600/20"
+                                                >
+                                                    Message
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </motion.li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="text-center py-12">
+                                <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <p className="text-[var(--text-secondary)]">All memberships are healthy!</p>
+                                <p className="text-[var(--text-secondary)] text-sm mt-1">No expirations in the next 7 days.</p>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+
+                {/* Peak Hours Section — Gym Owner Only */}
+                {user.role === 'gym' && (
+                    <motion.div
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        variants={fadeIn}
+                        className="bg-[var(--bg-card)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--border-color)] mb-8"
+                    >
+                        <h2 className="text-2xl font-bold mb-6 text-[var(--text-primary)] flex items-center">
+                            <span className="bg-purple-500 w-1.5 h-8 rounded-full mr-3"></span>
+                            ⏰ Peak Hours Estimate
+                        </h2>
+                        <p className="text-[var(--text-secondary)] text-sm mb-6">
+                            Based on member workout activity over the last 30 days
+                        </p>
+
+                        {peakHours.some((h) => h.count > 0) ? (
+                            <>
+                                {/* Bar Chart */}
+                                <div className="flex items-end gap-1 h-48 mb-4">
+                                    {peakHours.map((h) => {
+                                        const maxCount = Math.max(...peakHours.map((p) => p.count));
+                                        const heightPercent = maxCount > 0 ? (h.count / maxCount) * 100 : 0;
+                                        return (
+                                            <div key={h.hour} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                    {formatHour(h.hour)}: {h.count} sessions
+                                                </div>
+                                                <div
+                                                    className="w-full rounded-t transition-all duration-300 group-hover:opacity-80"
+                                                    style={{
+                                                        height: `${Math.max(heightPercent, 2)}%`,
+                                                        background: heightPercent > 75 ? '#ef4444' : heightPercent > 50 ? '#f97316' : heightPercent > 25 ? '#3b82f6' : '#6b7280',
+                                                    }}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {/* X-axis labels */}
+                                <div className="flex gap-1">
+                                    {peakHours.map((h) => (
+                                        <div key={h.hour} className="flex-1 text-center text-[8px] sm:text-[10px] text-[var(--text-secondary)]">
+                                            {h.hour % 3 === 0 ? formatHour(h.hour) : ''}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Top 3 Busiest Hours */}
+                                <div className="mt-6 flex flex-wrap gap-3">
+                                    <span className="text-[var(--text-secondary)] text-sm font-medium">Busiest:</span>
+                                    {[...peakHours]
+                                        .sort((a, b) => b.count - a.count)
+                                        .slice(0, 3)
+                                        .filter((h) => h.count > 0)
+                                        .map((h) => (
+                                            <span key={h.hour} className="bg-orange-500/15 text-orange-400 border border-orange-500/25 text-xs font-bold px-3 py-1 rounded-full">
+                                                {formatHour(h.hour)} ({h.count})
+                                            </span>
+                                        ))}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="text-center py-12">
+                                <div className="w-16 h-16 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p className="text-[var(--text-secondary)]">Not enough data yet</p>
+                                <p className="text-[var(--text-secondary)] text-sm mt-1">Peak hours will appear once members start logging workouts.</p>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+
+                {/* Growth Analytics Section — Gym Owner Only */}
+                {user.role === 'gym' && (
+                    <motion.div
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        variants={fadeIn}
+                        className="bg-[var(--bg-card)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--border-color)] mb-8"
+                    >
+                        <h2 className="text-2xl font-bold mb-6 text-[var(--text-primary)] flex items-center">
+                            <span className="bg-green-500 w-1.5 h-8 rounded-full mr-3"></span>
+                            📊 Growth Analytics
+                        </h2>
+
+                        {/* Stat Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-5 rounded-xl text-center">
+                                <p className="text-3xl font-bold text-blue-400">{growthData.totalMembers}</p>
+                                <p className="text-[var(--text-secondary)] text-sm mt-1">Total Members</p>
+                            </div>
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-5 rounded-xl text-center">
+                                <p className="text-3xl font-bold text-purple-400">{growthData.totalTrainers}</p>
+                                <p className="text-[var(--text-secondary)] text-sm mt-1">Active Trainers</p>
+                            </div>
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] p-5 rounded-xl text-center">
+                                <p className="text-3xl font-bold text-green-400">
+                                    {growthData.monthlyGrowth.length > 0
+                                        ? growthData.monthlyGrowth[growthData.monthlyGrowth.length - 1].newMembers
+                                        : 0}
+                                </p>
+                                <p className="text-[var(--text-secondary)] text-sm mt-1">This Month's Signups</p>
+                            </div>
+                        </div>
+
+                        {/* Monthly Growth Bar Chart */}
+                        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Member Growth (Last 6 Months)</h3>
+                        {growthData.monthlyGrowth.length > 0 ? (
+                            <div className="flex items-end gap-3 h-40">
+                                {growthData.monthlyGrowth.map((item) => {
+                                    const maxVal = Math.max(...growthData.monthlyGrowth.map((g) => g.newMembers));
+                                    const heightPct = maxVal > 0 ? (item.newMembers / maxVal) * 100 : 0;
+                                    // Make sure parsing dates like "2026-04" ignores timezone by appending "-01T00:00:00"
+                                    const dateStr = item.month + '-01T00:00:00';
+                                    const monthLabel = new Date(dateStr).toLocaleDateString('en-US', { month: 'short' });
+                                    return (
+                                        <div key={item.month} className="flex-1 flex flex-col items-center justify-end h-full">
+                                            <span className="text-[var(--text-primary)] text-xs font-bold mb-1">{item.newMembers}</span>
+                                            <div
+                                                className="w-full bg-blue-600 rounded-t hover:bg-blue-500 transition-all duration-300"
+                                                style={{ height: `${Math.max(heightPct, 5)}%` }}
+                                            />
+                                            <span className="text-[var(--text-secondary)] text-xs mt-2">{monthLabel}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="bg-[var(--bg-secondary)] p-8 rounded-xl text-center text-[var(--text-secondary)] italic border border-[var(--border-color)] border-dashed">
+                                No growth data available yet. New member signups will appear here.
+                            </div>
+                        )}
+                    </motion.div>
                 )}
 
                 {/* Join Requests Section (Only for Gym or Trainer in a Gym) */}

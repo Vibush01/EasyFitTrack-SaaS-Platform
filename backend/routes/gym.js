@@ -22,6 +22,7 @@ const Trainer = require('../models/Trainer');
 const JoinRequest = require('../models/JoinRequest');
 const EventLog = require('../models/EventLog');
 const MembershipRequest = require('../models/MembershipRequest');
+const DailyLog = require('../models/DailyLog');
 
 // Configure Multer for file uploads
 const storage = multer.memoryStorage();
@@ -412,6 +413,162 @@ router.get('/members', authMiddleware, async (req, res, next) => {
         res.json(members);
     } catch (error) {
         logger.error('Error in GET /members:', error);
+        next(error);
+    }
+});
+
+// ─── Membership Retention: Expiring Soon ───────────────────
+// GET /gym/members/expiring-soon — Gym sees members expiring in 7 days
+router.get('/members/expiring-soon', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'gym') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const gym = await Gym.findById(req.user.id);
+        if (!gym) {
+            return res.status(404).json({ message: 'Gym not found' });
+        }
+
+        const now = new Date();
+        const sevenDaysLater = new Date();
+        sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+
+        // Find members of this gym whose endDate is between now and now+7days
+        const expiringMembers = await Member.find({
+            _id: { $in: gym.members },
+            'membership.endDate': { $gte: now, $lte: sevenDaysLater },
+        })
+            .select('name email profileImage membership')
+            .sort({ 'membership.endDate': 1 })
+            .lean();
+
+        // Add daysRemaining to each member
+        const result = expiringMembers.map((member) => {
+            const endDate = new Date(member.membership.endDate);
+            const diffMs = endDate - now;
+            const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            return { ...member, daysRemaining };
+        });
+
+        res.json(result);
+    } catch (error) {
+        logger.error('Error in GET /members/expiring-soon:', error);
+        next(error);
+    }
+});
+
+// ─── Analytics: Peak Hours ─────────────────────────────────
+// GET /gym/analytics/peak-hours — Gym sees hourly workout activity
+router.get('/analytics/peak-hours', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'gym') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const gym = await Gym.findById(req.user.id);
+        if (!gym) {
+            return res.status(404).json({ message: 'Gym not found' });
+        }
+
+        if (!gym.members || gym.members.length === 0) {
+            return res.json([]);
+        }
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Aggregate DailyLogs for gym members over the last 30 days
+        // Group by $hour of createdAt to find peak workout-start times
+        const peakHours = await DailyLog.aggregate([
+            {
+                $match: {
+                    member: { $in: gym.members },
+                    createdAt: { $gte: thirtyDaysAgo },
+                },
+            },
+            {
+                $group: {
+                    _id: { $hour: '$createdAt' },
+                    count: { $sum: 1 },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    hour: '$_id',
+                    count: 1,
+                },
+            },
+            { $sort: { hour: 1 } },
+        ]);
+
+        // Fill in missing hours with count: 0 for a complete 0-23 array
+        const fullDay = Array.from({ length: 24 }, (_, i) => {
+            const found = peakHours.find((h) => h.hour === i);
+            return { hour: i, count: found ? found.count : 0 };
+        });
+
+        res.json(fullDay);
+    } catch (error) {
+        logger.error('Error in GET /analytics/peak-hours:', error);
+        next(error);
+    }
+});
+
+// ─── Analytics: Month-over-Month Growth ────────────────────
+// GET /gym/analytics/growth — Gym sees member growth stats
+router.get('/analytics/growth', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'gym') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const gym = await Gym.findById(req.user.id)
+            .populate('members', '_id')
+            .populate('trainers', '_id');
+        if (!gym) {
+            return res.status(404).json({ message: 'Gym not found' });
+        }
+
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        // Aggregate accepted member join requests grouped by month
+        const monthlyGrowth = await JoinRequest.aggregate([
+            {
+                $match: {
+                    gym: gym._id,
+                    status: 'accepted',
+                    userModel: 'Member',
+                    createdAt: { $gte: sixMonthsAgo },
+                },
+            },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: '$createdAt' },
+                        month: { $month: '$createdAt' },
+                    },
+                    newMembers: { $sum: 1 },
+                },
+            },
+            { $sort: { '_id.year': 1, '_id.month': 1 } },
+        ]);
+
+        // Format as "YYYY-MM" strings
+        const formattedGrowth = monthlyGrowth.map((item) => ({
+            month: `${item._id.year}-${String(item._id.month).padStart(2, '0')}`,
+            newMembers: item.newMembers,
+        }));
+
+        res.json({
+            monthlyGrowth: formattedGrowth,
+            totalMembers: gym.members ? gym.members.length : 0,
+            totalTrainers: gym.trainers ? gym.trainers.length : 0,
+        });
+    } catch (error) {
+        logger.error('Error in GET /analytics/growth:', error);
         next(error);
     }
 });
