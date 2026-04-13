@@ -516,6 +516,63 @@ router.get('/analytics/peak-hours', authMiddleware, async (req, res, next) => {
     }
 });
 
+// ─── Analytics: Month-over-Month Growth ────────────────────
+// GET /gym/analytics/growth — Gym sees member growth stats
+router.get('/analytics/growth', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'gym') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const gym = await Gym.findById(req.user.id)
+            .populate('members', '_id')
+            .populate('trainers', '_id');
+        if (!gym) {
+            return res.status(404).json({ message: 'Gym not found' });
+        }
+
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        // Aggregate accepted member join requests grouped by month
+        const monthlyGrowth = await JoinRequest.aggregate([
+            {
+                $match: {
+                    gym: gym._id,
+                    status: 'accepted',
+                    userModel: 'Member',
+                    createdAt: { $gte: sixMonthsAgo },
+                },
+            },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: '$createdAt' },
+                        month: { $month: '$createdAt' },
+                    },
+                    newMembers: { $sum: 1 },
+                },
+            },
+            { $sort: { '_id.year': 1, '_id.month': 1 } },
+        ]);
+
+        // Format as "YYYY-MM" strings
+        const formattedGrowth = monthlyGrowth.map((item) => ({
+            month: `${item._id.year}-${String(item._id.month).padStart(2, '0')}`,
+            newMembers: item.newMembers,
+        }));
+
+        res.json({
+            monthlyGrowth: formattedGrowth,
+            totalMembers: gym.members ? gym.members.length : 0,
+            totalTrainers: gym.trainers ? gym.trainers.length : 0,
+        });
+    } catch (error) {
+        logger.error('Error in GET /analytics/growth:', error);
+        next(error);
+    }
+});
+
 // Get trainers for membership management (Gym only)
 router.get('/trainers', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym') {
