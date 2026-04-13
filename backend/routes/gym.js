@@ -416,6 +416,47 @@ router.get('/members', authMiddleware, async (req, res, next) => {
     }
 });
 
+// ─── Membership Retention: Expiring Soon ───────────────────
+// GET /gym/members/expiring-soon — Gym sees members expiring in 7 days
+router.get('/members/expiring-soon', authMiddleware, async (req, res, next) => {
+    if (req.user.role !== 'gym') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const gym = await Gym.findById(req.user.id);
+        if (!gym) {
+            return res.status(404).json({ message: 'Gym not found' });
+        }
+
+        const now = new Date();
+        const sevenDaysLater = new Date();
+        sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+
+        // Find members of this gym whose endDate is between now and now+7days
+        const expiringMembers = await Member.find({
+            _id: { $in: gym.members },
+            'membership.endDate': { $gte: now, $lte: sevenDaysLater },
+        })
+            .select('name email profileImage membership')
+            .sort({ 'membership.endDate': 1 })
+            .lean();
+
+        // Add daysRemaining to each member
+        const result = expiringMembers.map((member) => {
+            const endDate = new Date(member.membership.endDate);
+            const diffMs = endDate - now;
+            const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            return { ...member, daysRemaining };
+        });
+
+        res.json(result);
+    } catch (error) {
+        logger.error('Error in GET /members/expiring-soon:', error);
+        next(error);
+    }
+});
+
 // Get trainers for membership management (Gym only)
 router.get('/trainers', authMiddleware, async (req, res, next) => {
     if (req.user.role !== 'gym') {
