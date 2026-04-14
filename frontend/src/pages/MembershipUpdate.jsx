@@ -145,10 +145,31 @@ const MembershipUpdate = () => {
                             </div>
                             <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
                                 <p className="text-[var(--text-secondary)] text-sm mb-1">Status</p>
-                                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${userDetails?.membership?.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
-                                    }`}>
-                                    {userDetails?.membership?.status || 'Inactive'}
-                                </span>
+                                {(() => {
+                                    const status = userDetails?.membershipStatus || 'none';
+                                    const statusConfig = {
+                                        active: { label: 'Active', className: 'bg-green-500/10 text-green-500' },
+                                        grace: { label: 'Grace Period', className: 'bg-yellow-500/10 text-yellow-500' },
+                                        suspended: { label: 'Suspended', className: 'bg-orange-500/10 text-orange-500' },
+                                        terminated: { label: 'Terminated', className: 'bg-red-500/10 text-red-500' },
+                                        none: { label: 'No Membership', className: 'bg-gray-500/10 text-gray-500' },
+                                    };
+                                    const { label, className } = statusConfig[status] || statusConfig.none;
+                                    return (
+                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${className}`}>
+                                            {label}
+                                        </span>
+                                    );
+                                })()}
+                                {userDetails?.membershipStatus === 'grace' && (
+                                    <p className="text-yellow-500 text-xs mt-2">⚠️ Your membership has recently expired. Renew soon to avoid losing access.</p>
+                                )}
+                                {userDetails?.membershipStatus === 'suspended' && (
+                                    <p className="text-orange-500 text-xs mt-2">🚫 Your membership is suspended. Features are restricted until you renew.</p>
+                                )}
+                                {userDetails?.membershipStatus === 'terminated' && (
+                                    <p className="text-red-500 text-xs mt-2">❌ Your membership has been terminated due to inactivity. Please rejoin a gym.</p>
+                                )}
                             </div>
                         </div>
                     </motion.div>

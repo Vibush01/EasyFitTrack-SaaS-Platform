@@ -4,6 +4,7 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
+import { compressImage } from '../utils/compressImage';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -43,11 +44,15 @@ const Profile = () => {
         }
     }, [user]);
 
-    const handleChange = (e) => {
+    const handleChange = async (e) => {
         if (e.target.name === 'profileImage') {
             const file = e.target.files[0];
-            setFormData({ ...formData, profileImage: file });
-            setPreviewImage(URL.createObjectURL(file));
+            if (file) {
+                setPreviewImage(URL.createObjectURL(file));
+                // Compress before storing — keeps Cloudinary within free tier
+                const compressed = await compressImage(file);
+                setFormData({ ...formData, profileImage: compressed });
+            }
         } else {
             setFormData({ ...formData, [e.target.name]: e.target.value });
         }

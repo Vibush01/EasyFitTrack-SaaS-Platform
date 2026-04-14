@@ -3,6 +3,7 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
+import { compressImages } from '../utils/compressImage';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -98,10 +99,13 @@ const UpdateGym = () => {
         });
     };
 
-    const handlePhotoChange = (e) => {
+    const handlePhotoChange = async (e) => {
         const files = Array.from(e.target.files);
-        setFormData({ ...formData, photos: [...formData.photos, ...files] });
+        // Show previews immediately from originals
         setPreviewImages([...previewImages, ...files.map((file) => URL.createObjectURL(file))]);
+        // Compress before storing — keeps Cloudinary within free tier
+        const compressedFiles = await compressImages(files);
+        setFormData({ ...formData, photos: [...formData.photos, ...compressedFiles] });
     };
 
     const handleDeletePhoto = (photoUrl) => {
