@@ -16,6 +16,7 @@ import {
 } from 'chart.js';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
+import { compressImages } from '../utils/compressImage';
 
 ChartJS.register(
     CategoryScale,
@@ -103,8 +104,11 @@ const ProgressTracker = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleFileChange = (e) => {
-        setFormData({ ...formData, images: e.target.files });
+    const handleFileChange = async (e) => {
+        const files = Array.from(e.target.files);
+        // Compress before storing — keeps Cloudinary within free tier
+        const compressedFiles = await compressImages(files);
+        setFormData({ ...formData, images: compressedFiles });
     };
 
     const handleSubmit = async (e) => {
