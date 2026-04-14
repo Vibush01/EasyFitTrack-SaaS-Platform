@@ -10,16 +10,17 @@ const eventLogSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 
-// Middleware to keep only the latest 20 events
+// On-demand cleanup: runs inline after each save (no cron needed — safe for Render free tier)
 eventLogSchema.post('save', async function (doc) {
     try {
         const count = await mongoose.model('EventLog').countDocuments();
         if (count > 1000) {
-            const oldestEvents = await mongoose.model('EventLog')
+            const oldestEvents = await mongoose
+                .model('EventLog')
                 .find()
                 .sort({ createdAt: 1 })
                 .limit(count - 1000);
-            const idsToDelete = oldestEvents.map(event => event._id);
+            const idsToDelete = oldestEvents.map((event) => event._id);
             await mongoose.model('EventLog').deleteMany({ _id: { $in: idsToDelete } });
         }
     } catch (error) {
