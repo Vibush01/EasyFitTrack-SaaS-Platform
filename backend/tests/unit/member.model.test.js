@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const Member = require('../../models/Member');
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import Member from '../../models/Member.js';
 
 describe('Member Model', () => {
     beforeAll(async () => {
