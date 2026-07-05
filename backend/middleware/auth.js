@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
+import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
 const authMiddleware = async (req, res, next) => {
     // Check for Authorization header
@@ -18,7 +18,9 @@ const authMiddleware = async (req, res, next) => {
 
         // Validate the decoded token
         if (!decoded.id || !mongoose.Types.ObjectId.isValid(decoded.id)) {
-            return res.status(401).json({ message: 'Invalid token: user ID is missing or invalid' });
+            return res
+                .status(401)
+                .json({ message: 'Invalid token: user ID is missing or invalid' });
         }
 
         if (!decoded.role) {
@@ -32,4 +34,4 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-module.exports = authMiddleware;
+export default authMiddleware;

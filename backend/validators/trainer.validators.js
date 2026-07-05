@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+import { body, param } from 'express-validator';
 
 const workoutPlanValidation = [
     body('memberId')
@@ -174,11 +174,9 @@ const trainerCommentValidation = [
         .withMessage('Invalid target ID'),
 ];
 
-const memberIdParamValidation = [
-    param('memberId').isMongoId().withMessage('Invalid member ID'),
-];
+const memberIdParamValidation = [param('memberId').isMongoId().withMessage('Invalid member ID')];
 
-module.exports = {
+export {
     workoutPlanValidation,
     workoutPlanUpdateValidation,
     dietPlanValidation,
