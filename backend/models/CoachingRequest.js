@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const coachingRequestSchema = new mongoose.Schema({
     member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
@@ -11,4 +11,4 @@ const coachingRequestSchema = new mongoose.Schema({
 // Prevent duplicate pending requests from the same member to the same trainer
 coachingRequestSchema.index({ member: 1, trainer: 1, status: 1 });
 
-module.exports = mongoose.model('CoachingRequest', coachingRequestSchema);
+export default mongoose.model('CoachingRequest', coachingRequestSchema);

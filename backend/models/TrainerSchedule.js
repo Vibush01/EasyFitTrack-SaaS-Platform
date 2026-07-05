@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const trainerScheduleSchema = new mongoose.Schema({
     trainer: { type: mongoose.Schema.Types.ObjectId, ref: 'Trainer', required: true },
@@ -10,4 +10,4 @@ const trainerScheduleSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('TrainerSchedule', trainerScheduleSchema);
+export default mongoose.model('TrainerSchedule', trainerScheduleSchema);

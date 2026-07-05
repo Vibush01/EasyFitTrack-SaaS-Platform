@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const macroLogSchema = new mongoose.Schema({
     member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
@@ -12,4 +12,4 @@ const macroLogSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('MacroLog', macroLogSchema);
+export default mongoose.model('MacroLog', macroLogSchema);

@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
+import mongoose from 'mongoose';
+import logger from '../utils/logger.js';
 
 const eventLogSchema = new mongoose.Schema({
     event: { type: String, required: true }, // e.g., "Login", "Register"
@@ -28,4 +28,4 @@ eventLogSchema.post('save', async function (doc) {
     }
 });
 
-module.exports = mongoose.model('EventLog', eventLogSchema);
+export default mongoose.model('EventLog', eventLogSchema);

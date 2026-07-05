@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const workoutSessionSchema = new mongoose.Schema(
     {
@@ -18,4 +18,4 @@ const workoutSessionSchema = new mongoose.Schema(
 // One session per member + plan + day
 workoutSessionSchema.index({ member: 1, workoutPlan: 1, date: 1 }, { unique: true });
 
-module.exports = mongoose.model('WorkoutSession', workoutSessionSchema);
+export default mongoose.model('WorkoutSession', workoutSessionSchema);

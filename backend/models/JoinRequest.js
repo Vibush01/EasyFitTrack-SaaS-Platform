@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const joinRequestSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, required: true, refPath: 'userModel' },
@@ -13,4 +13,4 @@ const joinRequestSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('JoinRequest', joinRequestSchema);
+export default mongoose.model('JoinRequest', joinRequestSchema);

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const trainerCommentSchema = new mongoose.Schema(
     {
@@ -37,4 +37,4 @@ const trainerCommentSchema = new mongoose.Schema(
 trainerCommentSchema.index({ member: 1, trainer: 1, createdAt: -1 });
 trainerCommentSchema.index({ targetType: 1, targetId: 1, createdAt: 1 });
 
-module.exports = mongoose.model('TrainerComment', trainerCommentSchema);
+export default mongoose.model('TrainerComment', trainerCommentSchema);

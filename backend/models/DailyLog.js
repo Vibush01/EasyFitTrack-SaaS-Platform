@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const dailyLogSchema = new mongoose.Schema(
     {
@@ -42,4 +42,4 @@ const dailyLogSchema = new mongoose.Schema(
 // Efficient lookup for today's logs
 dailyLogSchema.index({ member: 1, date: 1, status: 1 });
 
-module.exports = mongoose.model('DailyLog', dailyLogSchema);
+export default mongoose.model('DailyLog', dailyLogSchema);
