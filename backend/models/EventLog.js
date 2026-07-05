@@ -11,7 +11,7 @@ const eventLogSchema = new mongoose.Schema({
 });
 
 // On-demand cleanup: runs inline after each save (no cron needed — safe for Render free tier)
-eventLogSchema.post('save', async function (doc) {
+eventLogSchema.post('save', async function (_doc) {
     try {
         const count = await mongoose.model('EventLog').countDocuments();
         if (count > 1000) {

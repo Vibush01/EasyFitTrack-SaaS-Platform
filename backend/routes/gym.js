@@ -1,28 +1,28 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
-const authMiddleware = require('../middleware/auth');
-const validate = require('../middleware/validate');
-const {
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
+import authMiddleware from '../middleware/auth.js';
+import validate from '../middleware/validate.js';
+import {
     gymUpdateValidation,
     joinGymValidation,
     memberIdValidation,
     trainerIdValidation,
     requestActionValidation,
     membershipRequestActionValidation,
-} = require('../validators/gym.validators');
-const paginate = require('../utils/paginate');
-const logger = require('../utils/logger');
-const Gym = require('../models/Gym');
-const Member = require('../models/Member');
-const Trainer = require('../models/Trainer');
-const JoinRequest = require('../models/JoinRequest');
-const EventLog = require('../models/EventLog');
-const MembershipRequest = require('../models/MembershipRequest');
-const DailyLog = require('../models/DailyLog');
+} from '../validators/gym.validators.js';
+import paginate from '../utils/paginate.js';
+import logger from '../utils/logger.js';
+import Gym from '../models/Gym.js';
+import Member from '../models/Member.js';
+import Trainer from '../models/Trainer.js';
+import JoinRequest from '../models/JoinRequest.js';
+import EventLog from '../models/EventLog.js';
+import MembershipRequest from '../models/MembershipRequest.js';
+import DailyLog from '../models/DailyLog.js';
 
 // Configure Multer for file uploads
 const storage = multer.memoryStorage();
@@ -1220,4 +1220,4 @@ router.post(
     },
 );
 
-module.exports = router;
+export default router;

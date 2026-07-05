@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
-const EventLog = require('../models/EventLog');
+import authMiddleware from '../middleware/auth.js';
+import EventLog from '../models/EventLog.js';
 
 // Log an event (Authenticated users only)
 router.post('/log', authMiddleware, async (req, res, next) => {
@@ -30,4 +30,4 @@ router.post('/log', authMiddleware, async (req, res, next) => {
     }
 });
 
-module.exports = router;
+export default router;
