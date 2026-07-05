@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
+import mongoose from 'mongoose';
+import logger from '../utils/logger.js';
 
 // Set strictQuery to true to suppress deprecation warning
 mongoose.set('strictQuery', true);
@@ -14,4 +14,4 @@ const connectDB = async () => {
     }
 };
 
-module.exports = connectDB;
+export default connectDB;

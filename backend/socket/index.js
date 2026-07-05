@@ -1,5 +1,5 @@
-const ChatMessage = require('../models/ChatMessage');
-const logger = require('../utils/logger');
+import ChatMessage from '../models/ChatMessage.js';
+import logger from '../utils/logger.js';
 
 /**
  * Generate a deterministic DM room name from two user IDs.
@@ -122,4 +122,4 @@ const initializeSocket = (io) => {
     });
 };
 
-module.exports = initializeSocket;
+export default initializeSocket;
