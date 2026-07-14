@@ -208,8 +208,7 @@ router.put('/profile', authMiddleware, upload.single('profileImage'), profileUpd
 
         if (name) user.name = name;
         if (password) {
-            const salt = await bcrypt.genSalt(10);
-            user.password = await bcrypt.hash(password, salt);
+            user.password = password;
         }
         if (req.file) {
             const uploadResult = await new Promise((resolve, reject) => {
