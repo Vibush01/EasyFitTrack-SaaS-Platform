@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const workoutLogSchema = new mongoose.Schema(
     {
@@ -12,4 +12,4 @@ const workoutLogSchema = new mongoose.Schema(
 // Prevent duplicate logs for the same member on the same day
 workoutLogSchema.index({ member: 1, date: 1 }, { unique: true });
 
-module.exports = mongoose.model('WorkoutLog', workoutLogSchema);
+export default mongoose.model('WorkoutLog', workoutLogSchema);

@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
+import mongoose from 'mongoose';
+import logger from '../utils/logger.js';
 
 const eventLogSchema = new mongoose.Schema({
     event: { type: String, required: true }, // e.g., "Login", "Register"
@@ -11,7 +11,7 @@ const eventLogSchema = new mongoose.Schema({
 });
 
 // On-demand cleanup: runs inline after each save (no cron needed — safe for Render free tier)
-eventLogSchema.post('save', async function (doc) {
+eventLogSchema.post('save', async function (_doc) {
     try {
         const count = await mongoose.model('EventLog').countDocuments();
         if (count > 1000) {
@@ -28,4 +28,4 @@ eventLogSchema.post('save', async function (doc) {
     }
 });
 
-module.exports = mongoose.model('EventLog', eventLogSchema);
+export default mongoose.model('EventLog', eventLogSchema);

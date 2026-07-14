@@ -1,13 +1,13 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
-const membershipGuard = require('../middleware/membershipGuard');
-const ChatMessage = require('../models/ChatMessage');
-const Announcement = require('../models/Announcement');
-const Trainer = require('../models/Trainer');
-const Member = require('../models/Member');
-const Gym = require('../models/Gym');
-const paginate = require('../utils/paginate');
+import authMiddleware from '../middleware/auth.js';
+import membershipGuard from '../middleware/membershipGuard.js';
+import ChatMessage from '../models/ChatMessage.js';
+import Announcement from '../models/Announcement.js';
+import Trainer from '../models/Trainer.js';
+import Member from '../models/Member.js';
+import Gym from '../models/Gym.js';
+import paginate from '../utils/paginate.js';
 
 // ─── Personal DM Messages ──────────────────────────────────────
 // Get DM messages between current user and another user (gym-agnostic)
@@ -47,63 +47,70 @@ router.get('/dm/:otherUserId', authMiddleware, membershipGuard, async (req, res,
 });
 
 // Get chat messages between sender and receiver within a gym
-router.get('/messages/:gymId/:receiverId', authMiddleware, membershipGuard, async (req, res, next) => {
-    const { gymId, receiverId } = req.params;
+router.get(
+    '/messages/:gymId/:receiverId',
+    authMiddleware,
+    membershipGuard,
+    async (req, res, next) => {
+        const { gymId, receiverId } = req.params;
 
-    try {
-        const senderModel = req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1);
-        const receiver = await getUserModel(receiverId);
-        if (!receiver) {
-            return res.status(404).json({ message: 'Receiver not found' });
+        try {
+            const senderModel = req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1);
+            const receiver = await getUserModel(receiverId);
+            if (!receiver) {
+                return res.status(404).json({ message: 'Receiver not found' });
+            }
+            const receiverModel = receiver.role.charAt(0).toUpperCase() + receiver.role.slice(1);
+
+            // Chat restrictions
+            if (req.user.role === 'trainer') {
+                // Trainers can chat with Members and Gym Profile
+                if (receiverModel !== 'Member' && receiverModel !== 'Gym') {
+                    return res
+                        .status(403)
+                        .json({
+                            message: 'Trainers can only chat with Members and the Gym Profile',
+                        });
+                }
+            } else if (req.user.role === 'member') {
+                // Members can only chat with Trainers
+                if (receiverModel !== 'Trainer') {
+                    return res.status(403).json({ message: 'Members can only chat with Trainers' });
+                }
+            } else if (req.user.role === 'gym') {
+                // Gym Profiles can only chat with Trainers
+                if (receiverModel !== 'Trainer') {
+                    return res
+                        .status(403)
+                        .json({ message: 'Gym Profiles can only chat with Trainers' });
+                }
+            }
+
+            const messages = await ChatMessage.find({
+                $or: [
+                    {
+                        sender: req.user.id,
+                        senderModel,
+                        receiver: receiverId,
+                        receiverModel,
+                        gym: gymId,
+                    },
+                    {
+                        sender: receiverId,
+                        senderModel: receiverModel,
+                        receiver: req.user.id,
+                        receiverModel: senderModel,
+                        gym: gymId,
+                    },
+                ],
+            }).sort({ timestamp: 1 });
+
+            res.json(messages);
+        } catch (error) {
+            next(error);
         }
-        const receiverModel = receiver.role.charAt(0).toUpperCase() + receiver.role.slice(1);
-
-        // Chat restrictions
-        if (req.user.role === 'trainer') {
-            // Trainers can chat with Members and Gym Profile
-            if (receiverModel !== 'Member' && receiverModel !== 'Gym') {
-                return res
-                    .status(403)
-                    .json({ message: 'Trainers can only chat with Members and the Gym Profile' });
-            }
-        } else if (req.user.role === 'member') {
-            // Members can only chat with Trainers
-            if (receiverModel !== 'Trainer') {
-                return res.status(403).json({ message: 'Members can only chat with Trainers' });
-            }
-        } else if (req.user.role === 'gym') {
-            // Gym Profiles can only chat with Trainers
-            if (receiverModel !== 'Trainer') {
-                return res
-                    .status(403)
-                    .json({ message: 'Gym Profiles can only chat with Trainers' });
-            }
-        }
-
-        const messages = await ChatMessage.find({
-            $or: [
-                {
-                    sender: req.user.id,
-                    senderModel,
-                    receiver: receiverId,
-                    receiverModel,
-                    gym: gymId,
-                },
-                {
-                    sender: receiverId,
-                    senderModel: receiverModel,
-                    receiver: req.user.id,
-                    receiverModel: senderModel,
-                    gym: gymId,
-                },
-            ],
-        }).sort({ timestamp: 1 });
-
-        res.json(messages);
-    } catch (error) {
-        next(error);
-    }
-});
+    },
+);
 
 // Post an announcement (Gym only)
 router.post('/announcements', authMiddleware, async (req, res, next) => {
@@ -257,4 +264,4 @@ async function getUserModel(userId) {
     return null;
 }
 
-module.exports = router;
+export default router;

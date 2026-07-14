@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const liftSchema = new mongoose.Schema(
     {
@@ -25,4 +25,4 @@ const progressLogSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('ProgressLog', progressLogSchema);
+export default mongoose.model('ProgressLog', progressLogSchema);

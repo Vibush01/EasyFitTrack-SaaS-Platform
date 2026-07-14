@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const multer = require('multer');
-const authMiddleware = require('../middleware/auth');
-const validate = require('../middleware/validate');
-const {
+import multer from 'multer';
+import authMiddleware from '../middleware/auth.js';
+import validate from '../middleware/validate.js';
+import {
     macroLogValidation,
     macroIdValidation,
     progressLogValidation,
@@ -14,23 +14,23 @@ const {
     scheduleValidation,
     dietScheduleValidation,
     feedbackReplyValidation,
-} = require('../validators/member.validators');
-const paginate = require('../utils/paginate');
-const Member = require('../models/Member');
-const Gym = require('../models/Gym');
-const EventLog = require('../models/EventLog');
-const MembershipRequest = require('../models/MembershipRequest');
-const MacroLog = require('../models/MacroLog');
-const ProgressLog = require('../models/ProgressLog');
-const WorkoutLog = require('../models/WorkoutLog');
-const WorkoutSession = require('../models/WorkoutSession');
-const WorkoutPlan = require('../models/WorkoutPlan');
-const CustomWorkout = require('../models/CustomWorkout');
-const DailyLog = require('../models/DailyLog');
-const MemberDietSchedule = require('../models/MemberDietSchedule');
-const TrainerComment = require('../models/TrainerComment');
-const Trainer = require('../models/Trainer');
-const cloudinary = require('cloudinary').v2;
+} from '../validators/member.validators.js';
+import paginate from '../utils/paginate.js';
+import Member from '../models/Member.js';
+import Gym from '../models/Gym.js';
+import EventLog from '../models/EventLog.js';
+import MembershipRequest from '../models/MembershipRequest.js';
+import MacroLog from '../models/MacroLog.js';
+import ProgressLog from '../models/ProgressLog.js';
+import WorkoutLog from '../models/WorkoutLog.js';
+import WorkoutSession from '../models/WorkoutSession.js';
+import WorkoutPlan from '../models/WorkoutPlan.js';
+import CustomWorkout from '../models/CustomWorkout.js';
+import DailyLog from '../models/DailyLog.js';
+import MemberDietSchedule from '../models/MemberDietSchedule.js';
+import TrainerComment from '../models/TrainerComment.js';
+import Trainer from '../models/Trainer.js';
+import { v2 as cloudinary } from 'cloudinary';
 
 // Configure Multer for file uploads
 const storage = multer.memoryStorage();
@@ -1460,10 +1460,20 @@ router.get('/diet-schedule', authMiddleware, async (req, res, next) => {
 
     try {
         const schedule = await MemberDietSchedule.findOne({ member: req.user.id }).lean();
-        res.json(schedule || { member: req.user.id, schedule: {
-            monday: [], tuesday: [], wednesday: [], thursday: [],
-            friday: [], saturday: [], sunday: [],
-        }});
+        res.json(
+            schedule || {
+                member: req.user.id,
+                schedule: {
+                    monday: [],
+                    tuesday: [],
+                    wednesday: [],
+                    thursday: [],
+                    friday: [],
+                    saturday: [],
+                    sunday: [],
+                },
+            },
+        );
     } catch (error) {
         next(error);
     }
@@ -1482,7 +1492,15 @@ router.put(
 
         try {
             const { schedule } = req.body;
-            const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            const validDays = [
+                'monday',
+                'tuesday',
+                'wednesday',
+                'thursday',
+                'friday',
+                'saturday',
+                'sunday',
+            ];
 
             // Validate structure
             for (const day of validDays) {
@@ -1491,8 +1509,13 @@ router.put(
                 }
                 if (schedule[day]) {
                     for (const meal of schedule[day]) {
-                        if (!meal.mealName || meal.calories == null || meal.protein == null ||
-                            meal.carbs == null || meal.fats == null) {
+                        if (
+                            !meal.mealName ||
+                            typeof meal.calories !== 'number' ||
+                            typeof meal.protein !== 'number' ||
+                            typeof meal.carbs !== 'number' ||
+                            typeof meal.fats !== 'number'
+                        ) {
                             return res.status(400).json({
                                 message: `Each meal in ${day} must have mealName, calories, protein, carbs, fats`,
                             });
@@ -1526,7 +1549,15 @@ router.get('/diet-schedule/today', authMiddleware, async (req, res, next) => {
             return res.json({ plannedMeals: [], todayMacroLogs: [] });
         }
 
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayNames = [
+            'sunday',
+            'monday',
+            'tuesday',
+            'wednesday',
+            'thursday',
+            'friday',
+            'saturday',
+        ];
         const today = new Date();
         const dayName = dayNames[today.getDay()];
         const plannedMeals = schedule.schedule[dayName] || [];
@@ -1639,4 +1670,4 @@ router.post(
     },
 );
 
-module.exports = router;
+export default router;

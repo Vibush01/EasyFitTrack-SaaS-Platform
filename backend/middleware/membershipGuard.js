@@ -1,7 +1,7 @@
-const Member = require('../models/Member');
-const Gym = require('../models/Gym');
-const MembershipRequest = require('../models/MembershipRequest');
-const logger = require('../utils/logger');
+import Member from '../models/Member.js';
+import Gym from '../models/Gym.js';
+import MembershipRequest from '../models/MembershipRequest.js';
+import logger from '../utils/logger.js';
 
 /**
  * Middleware: membershipGuard
@@ -33,7 +33,7 @@ const membershipGuard = async (req, res, next) => {
                 const gym = await Gym.findById(member.gym);
                 if (gym) {
                     gym.members = gym.members.filter(
-                        (id) => id.toString() !== member._id.toString()
+                        (id) => id.toString() !== member._id.toString(),
                     );
                     await gym.save();
                 }
@@ -53,7 +53,8 @@ const membershipGuard = async (req, res, next) => {
             }
 
             return res.status(403).json({
-                message: 'Your membership has been terminated due to prolonged inactivity. Please send a new join request to rejoin a gym.',
+                message:
+                    'Your membership has been terminated due to prolonged inactivity. Please send a new join request to rejoin a gym.',
                 membershipStatus: 'terminated',
             });
         }
@@ -69,4 +70,4 @@ const membershipGuard = async (req, res, next) => {
     }
 };
 
-module.exports = membershipGuard;
+export default membershipGuard;

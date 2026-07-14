@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+import { body, param } from 'express-validator';
 
 const gymUpdateValidation = [
     body('gymName')
@@ -68,7 +68,7 @@ const membershipRequestActionValidation = [
         .withMessage('Action must be approve or reject'),
 ];
 
-module.exports = {
+export {
     gymUpdateValidation,
     joinGymValidation,
     memberIdValidation,

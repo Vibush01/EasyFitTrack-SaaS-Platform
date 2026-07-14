@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
-const membershipGuard = require('../middleware/membershipGuard');
-const validate = require('../middleware/validate');
-const {
+import authMiddleware from '../middleware/auth.js';
+import membershipGuard from '../middleware/membershipGuard.js';
+import validate from '../middleware/validate.js';
+import {
     workoutPlanValidation,
     workoutPlanUpdateValidation,
     dietPlanValidation,
@@ -20,21 +20,21 @@ const {
     coachingRequestActionValidation,
     trainerCommentValidation,
     memberIdParamValidation,
-} = require('../validators/trainer.validators');
-const paginate = require('../utils/paginate');
-const WorkoutPlan = require('../models/WorkoutPlan');
-const WorkoutSchedule = require('../models/WorkoutSchedule');
-const PlanRequest = require('../models/PlanRequest');
-const DietPlan = require('../models/DietPlan');
-const TrainerSchedule = require('../models/TrainerSchedule');
-const Trainer = require('../models/Trainer');
-const Member = require('../models/Member');
-const Gym = require('../models/Gym');
-const CoachingRequest = require('../models/CoachingRequest');
-const TrainerComment = require('../models/TrainerComment');
-const WorkoutLog = require('../models/WorkoutLog');
-const MacroLog = require('../models/MacroLog');
-const MemberDietSchedule = require('../models/MemberDietSchedule');
+} from '../validators/trainer.validators.js';
+import paginate from '../utils/paginate.js';
+import WorkoutPlan from '../models/WorkoutPlan.js';
+import WorkoutSchedule from '../models/WorkoutSchedule.js';
+import PlanRequest from '../models/PlanRequest.js';
+import DietPlan from '../models/DietPlan.js';
+import TrainerSchedule from '../models/TrainerSchedule.js';
+import Trainer from '../models/Trainer.js';
+import Member from '../models/Member.js';
+import Gym from '../models/Gym.js';
+import CoachingRequest from '../models/CoachingRequest.js';
+import TrainerComment from '../models/TrainerComment.js';
+import WorkoutLog from '../models/WorkoutLog.js';
+import MacroLog from '../models/MacroLog.js';
+import MemberDietSchedule from '../models/MemberDietSchedule.js';
 
 // ─── Trainer Discovery ──────────────────────────────────────────
 // GET /trainer/browse — public list of trainers for members to discover
@@ -1206,7 +1206,7 @@ router.get('/clients/stats', authMiddleware, async (req, res, next) => {
                 .select('schedule')
                 .lean();
 
-            let dietAdherence = 0;
+            let dietAdherence;
             if (dietSchedule) {
                 const dayNames = [
                     'sunday',
@@ -1238,7 +1238,8 @@ router.get('/clients/stats', authMiddleware, async (req, res, next) => {
                     }
                 }
 
-                dietAdherence = plannedDays > 0 ? Math.round((adherentDays / plannedDays) * 100) : 0;
+                dietAdherence =
+                    plannedDays > 0 ? Math.round((adherentDays / plannedDays) * 100) : 0;
             } else {
                 // No schedule — use simple "days logged / 7"
                 dietAdherence = Math.round((loggedDays.size / 7) * 100);
@@ -1363,75 +1364,72 @@ router.get(
 );
 
 // POST /trainer/comments — create a comment on a log entry
-router.post(
-    '/comments',
-    authMiddleware,
-    trainerCommentValidation,
-    async (req, res, next) => {
-        if (req.user.role !== 'trainer' && req.user.role !== 'member') {
-            return res.status(403).json({ message: 'Access denied' });
-        }
+router.post('/comments', authMiddleware, trainerCommentValidation, async (req, res, next) => {
+    if (req.user.role !== 'trainer' && req.user.role !== 'member') {
+        return res.status(403).json({ message: 'Access denied' });
+    }
 
-        try {
-            const { comment, targetType, targetId, memberId, parentId } = req.body;
+    try {
+        const { comment, targetType, targetId, memberId, parentId } = req.body;
 
-            // Determine author role
-            const authorModel = req.user.role === 'trainer' ? 'Trainer' : 'Member';
-            let trainerId, memberIdFinal;
+        // Determine author role
+        const authorModel = req.user.role === 'trainer' ? 'Trainer' : 'Member';
+        let trainerId, memberIdFinal;
 
-            if (req.user.role === 'trainer') {
-                trainerId = req.user.id;
-                memberIdFinal = memberId;
+        if (req.user.role === 'trainer') {
+            trainerId = req.user.id;
+            memberIdFinal = memberId;
 
-                if (!memberIdFinal) {
-                    return res.status(400).json({ message: 'memberId is required' });
-                }
-
-                // Verify the trainer has access to this member
-                const trainer = await Trainer.findById(req.user.id).lean();
-                let isClient = false;
-                if (trainer.personalClients?.map((id) => id.toString()).includes(memberIdFinal)) {
-                    isClient = true;
-                }
-                if (!isClient && trainer.gym) {
-                    const gym = await Gym.findById(trainer.gym).select('members').lean();
-                    if (gym?.members?.map((id) => id.toString()).includes(memberIdFinal)) {
-                        isClient = true;
-                    }
-                }
-                if (!isClient) {
-                    return res.status(403).json({ message: 'This member is not your client' });
-                }
-            } else {
-                // Member creating a reply — trainerId must come from body
-                memberIdFinal = req.user.id;
-                trainerId = req.body.trainerId;
-                if (!trainerId) {
-                    return res.status(400).json({ message: 'trainerId is required for member replies' });
-                }
+            if (!memberIdFinal) {
+                return res.status(400).json({ message: 'memberId is required' });
             }
 
-            const newComment = await TrainerComment.create({
-                author: req.user.id,
-                authorModel,
-                member: memberIdFinal,
-                trainer: trainerId,
-                targetType,
-                targetId,
-                parentId: parentId || null,
-                comment,
-            });
-
-            const populated = await TrainerComment.findById(newComment._id)
-                .populate('author', 'name profileImage')
-                .lean();
-
-            res.status(201).json(populated);
-        } catch (error) {
-            next(error);
+            // Verify the trainer has access to this member
+            const trainer = await Trainer.findById(req.user.id).lean();
+            let isClient = false;
+            if (trainer.personalClients?.map((id) => id.toString()).includes(memberIdFinal)) {
+                isClient = true;
+            }
+            if (!isClient && trainer.gym) {
+                const gym = await Gym.findById(trainer.gym).select('members').lean();
+                if (gym?.members?.map((id) => id.toString()).includes(memberIdFinal)) {
+                    isClient = true;
+                }
+            }
+            if (!isClient) {
+                return res.status(403).json({ message: 'This member is not your client' });
+            }
+        } else {
+            // Member creating a reply — trainerId must come from body
+            memberIdFinal = req.user.id;
+            trainerId = req.body.trainerId;
+            if (!trainerId) {
+                return res
+                    .status(400)
+                    .json({ message: 'trainerId is required for member replies' });
+            }
         }
-    },
-);
+
+        const newComment = await TrainerComment.create({
+            author: req.user.id,
+            authorModel,
+            member: memberIdFinal,
+            trainer: trainerId,
+            targetType,
+            targetId,
+            parentId: parentId || null,
+            comment,
+        });
+
+        const populated = await TrainerComment.findById(newComment._id)
+            .populate('author', 'name profileImage')
+            .lean();
+
+        res.status(201).json(populated);
+    } catch (error) {
+        next(error);
+    }
+});
 
 // GET /trainer/comments/:memberId — get all comment threads for a specific member
 router.get(
@@ -1468,4 +1466,4 @@ router.get(
     },
 );
 
-module.exports = router;
+export default router;

@@ -1,11 +1,11 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
-const Gym = require('../models/Gym');
-const Member = require('../models/Member');
-const Trainer = require('../models/Trainer');
-const EventLog = require('../models/EventLog');
-const paginate = require('../utils/paginate');
+import authMiddleware from '../middleware/auth.js';
+import Gym from '../models/Gym.js';
+import Member from '../models/Member.js';
+import Trainer from '../models/Trainer.js';
+import EventLog from '../models/EventLog.js';
+import paginate from '../utils/paginate.js';
 
 // Get all gyms (Admin only)
 router.get('/gyms', authMiddleware, async (req, res, next) => {
@@ -105,4 +105,4 @@ router.get('/analytics', authMiddleware, async (req, res, next) => {
     }
 });
 
-module.exports = router;
+export default router;

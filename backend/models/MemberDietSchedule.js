@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const mealSchema = new mongoose.Schema(
     {
@@ -33,4 +33,4 @@ const memberDietScheduleSchema = new mongoose.Schema(
     { timestamps: true },
 );
 
-module.exports = mongoose.model('MemberDietSchedule', memberDietScheduleSchema);
+export default mongoose.model('MemberDietSchedule', memberDietScheduleSchema);

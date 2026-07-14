@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const announcementSchema = new mongoose.Schema({
     gym: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', required: true },
@@ -8,4 +8,4 @@ const announcementSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('Announcement', announcementSchema);
+export default mongoose.model('Announcement', announcementSchema);

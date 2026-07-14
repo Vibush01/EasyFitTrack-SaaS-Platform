@@ -1,24 +1,25 @@
-const express = require('express');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
-const connectDB = require('./config/db');
-const configureCloudinary = require('./config/cloudinary');
-const errorHandler = require('./middleware/errorHandler');
-const authRoutes = require('./routes/auth');
-const gymRoutes = require('./routes/gym');
-const memberRoutes = require('./routes/member');
-const chatRoutes = require('./routes/chat');
-const trainerRoutes = require('./routes/trainer');
-const adminRoutes = require('./routes/admin');
-const contactRoutes = require('./routes/contact');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-const initializeSocket = require('./socket');
-const logger = require('./utils/logger');
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger.js';
+import connectDB from './config/db.js';
+import configureCloudinary from './config/cloudinary.js';
+import errorHandler from './middleware/errorHandler.js';
+import authRoutes from './routes/auth.js';
+import gymRoutes from './routes/gym.js';
+import memberRoutes from './routes/member.js';
+import chatRoutes from './routes/chat.js';
+import trainerRoutes from './routes/trainer.js';
+import adminRoutes from './routes/admin.js';
+import contactRoutes from './routes/contact.js';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import initializeSocket from './socket/index.js';
+import logger from './utils/logger.js';
+import analyticsRoutes from './routes/analytics.js';
 
 dotenv.config();
 const app = express();
@@ -91,7 +92,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/trainer', trainerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
-app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/analytics', analyticsRoutes);
 
 // Test Route
 app.get('/api/test', (req, res) => {
@@ -106,4 +107,4 @@ if (process.env.NODE_ENV !== 'test') {
     httpServer.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
 }
 
-module.exports = app;
+export default app;

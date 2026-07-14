@@ -1,14 +1,14 @@
 /**
  * Apply pagination to a Mongoose query based on request query params.
- * 
+ *
  * Usage:
  *   const query = Model.find({ status: 'active' }).sort({ createdAt: -1 });
  *   const result = await paginate(Model, { status: 'active' }, query, req);
  *   res.json(result);
- * 
+ *
  * Query params: ?page=1&limit=10
  * Defaults: page=1, limit=10, max limit=50
- * 
+ *
  * Returns: { data: [...], pagination: { page, limit, total, totalPages } }
  */
 const paginate = async (Model, filter, query, req) => {
@@ -32,4 +32,4 @@ const paginate = async (Model, filter, query, req) => {
     };
 };
 
-module.exports = paginate;
+export default paginate;

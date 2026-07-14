@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
-const validate = require('../middleware/validate');
-const ContactMessage = require('../models/ContactMessage');
-const { contactValidation, messageIdValidation } = require('../validators/contact.validators');
-const paginate = require('../utils/paginate');
+import authMiddleware from '../middleware/auth.js';
+import validate from '../middleware/validate.js';
+import ContactMessage from '../models/ContactMessage.js';
+import { contactValidation, messageIdValidation } from '../validators/contact.validators.js';
+import paginate from '../utils/paginate.js';
 
 // Submit a contact message (public route)
 router.post('/messages', contactValidation, validate, async (req, res, next) => {
@@ -43,22 +43,28 @@ router.get('/messages', authMiddleware, async (req, res, next) => {
 });
 
 // Delete a contact message (Admin only)
-router.delete('/messages/:id', authMiddleware, messageIdValidation, validate, async (req, res, next) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    try {
-        const message = await ContactMessage.findById(req.params.id);
-        if (!message) {
-            return res.status(404).json({ message: 'Contact message not found' });
+router.delete(
+    '/messages/:id',
+    authMiddleware,
+    messageIdValidation,
+    validate,
+    async (req, res, next) => {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        await message.deleteOne();
-        res.json({ message: 'Contact message deleted' });
-    } catch (error) {
-        next(error);
-    }
-});
+        try {
+            const message = await ContactMessage.findById(req.params.id);
+            if (!message) {
+                return res.status(404).json({ message: 'Contact message not found' });
+            }
 
-module.exports = router;
+            await message.deleteOne();
+            res.json({ message: 'Contact message deleted' });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
+
+export default router;

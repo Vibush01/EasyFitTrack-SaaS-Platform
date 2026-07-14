@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
-const authMiddleware = require('../../middleware/auth');
+import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
+import authMiddleware from '../../middleware/auth.js';
 
 describe('Auth Middleware', () => {
     let req, res, next;
@@ -47,7 +47,7 @@ describe('Auth Middleware', () => {
 
         expect(res.status).toHaveBeenCalledWith(401);
         expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Token is not valid' })
+            expect.objectContaining({ message: 'Token is not valid' }),
         );
         expect(next).not.toHaveBeenCalled();
     });
@@ -56,7 +56,7 @@ describe('Auth Middleware', () => {
         const token = jwt.sign(
             { id: 'not-a-valid-objectid', role: 'member' },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '1h' },
         );
         req.header.mockReturnValue(`Bearer ${token}`);
 
@@ -71,11 +71,7 @@ describe('Auth Middleware', () => {
 
     it('should return 401 if the token has no role', async () => {
         const validObjectId = new mongoose.Types.ObjectId().toString();
-        const token = jwt.sign(
-            { id: validObjectId },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
+        const token = jwt.sign({ id: validObjectId }, process.env.JWT_SECRET, { expiresIn: '1h' });
         req.header.mockReturnValue(`Bearer ${token}`);
 
         await authMiddleware(req, res, next);
@@ -89,11 +85,9 @@ describe('Auth Middleware', () => {
 
     it('should call next() and attach user to req when token is valid', async () => {
         const validObjectId = new mongoose.Types.ObjectId().toString();
-        const token = jwt.sign(
-            { id: validObjectId, role: 'member' },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
+        const token = jwt.sign({ id: validObjectId, role: 'member' }, process.env.JWT_SECRET, {
+            expiresIn: '1h',
+        });
         req.header.mockReturnValue(`Bearer ${token}`);
 
         await authMiddleware(req, res, next);

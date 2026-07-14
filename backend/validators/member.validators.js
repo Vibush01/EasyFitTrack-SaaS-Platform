@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+import { body, param } from 'express-validator';
 
 const macroLogValidation = [
     body('food').trim().notEmpty().withMessage('Food name is required'),
@@ -125,7 +125,7 @@ const feedbackReplyValidation = [
         .withMessage('Invalid trainer ID'),
 ];
 
-module.exports = {
+export {
     macroLogValidation,
     macroIdValidation,
     progressLogValidation,
